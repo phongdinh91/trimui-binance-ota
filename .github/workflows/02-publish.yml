@@ -1,0 +1,71 @@
+name: 02 - Publish OTA (manual approval)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (must match appVersion in src/main.go; example v0.29)'
+        required: true
+        type: string
+      confirmation:
+        description: 'Type PUBLISH to approve distributing this ZIP via OTA'
+        required: true
+        type: choice
+        options:
+          - PUBLISH
+
+permissions:
+  contents: write
+
+concurrency:
+  group: binance-ota-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ inputs.confirmation == 'PUBLISH' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+          cache: false
+      - name: Test and vet
+        working-directory: src
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Build verified ARM64 release ZIP
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        run: bash scripts/package.sh
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: approved-binance-release
+          path: dist/BinanceGia_TrimUI_StockOS_v*.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish GitHub Release only after explicit approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo 'Invalid version tag' >&2
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to replace it." >&2
+            exit 1
+          fi
+          ZIP="dist/BinanceGia_TrimUI_StockOS_$TAG.zip"
+          test -s "$ZIP"
+          gh release create "$TAG" "$ZIP" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "BINANCE $TAG" \
+            --notes "Verified ARM64 Stock OS build. Read-only Binance market viewer; no trading." \
+            --latest
