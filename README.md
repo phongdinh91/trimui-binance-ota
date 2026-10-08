@@ -37,3 +37,11 @@ Lần đầu phải cài gói Bootstrap có `Apps/BinanceGia.pak/ota.json` trỏ
 - `.github/workflows/build.yml`: build thử khi có thay đổi.
 - `.github/workflows/release.yml`: phát hành tự động chỉ khi tăng version.
 - `scripts/package.sh`: script đóng gói phụ trợ.
+
+## Mới trong v0.30 — tab KINH DOANH
+
+Tab **KINH DOANH** xem bảng giá vàng từ [24h.com.vn](https://www.24h.com.vn/gia-vang-hom-nay-c425.html) (SJC, DOJI, BTMH, BTMC và PNJ): cột **MUA**, **BÁN** theo đơn vị **triệu đồng/lượng**. Giá trang 24h công bố theo nghìn đồng/lượng, ứng dụng chia 1.000 khi hiển thị triệu đồng/lượng. Tab có thời gian cập nhật nguồn, tự yêu cầu tải lại mỗi 5 phút khi đang xem và giữ giá trước đó kèm cảnh báo khi tải lỗi.
+
+Điều khiển trên Brick Pro: **R1** lần lượt **TÌM KIẾM → YÊU THÍCH → KINH DOANH**, **L1** theo chiều ngược lại (có vòng lặp); trong KINH DOANH **lên/xuống** cuộn danh sách, **X** tải lại, không có thao tác giao dịch. Hai tab Binance trước đó và dữ liệu yêu thích tiếp tục hoạt động.
+
+**Giới hạn:** dữ liệu vàng đến từ trang web công khai của 24h, không phải API có cam kết. Nếu trang đổi HTML/chặn HTTP hoặc mất Wi-Fi, ứng dụng hiển thị lỗi thay vì tự đoán số. Đã kiểm thử bộ phân tích với HTML mẫu và biên dịch ARM64 trên GitHub Actions; cần xác nhận chức năng hiển thị trên Brick Pro thật. Không sử dụng số liệu này để đặt lệnh tự động.
