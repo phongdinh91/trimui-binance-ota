@@ -1,33 +1,38 @@
-# BINANCE — TrimUI Brick Pro (Stock OS)
+# BINANCE cho TrimUI Brick Pro — Stock OS
 
-Ứng dụng chỉ đọc giá, biểu đồ nến và chỉ báo MA/BOLL/MACD từ Binance Spot. **Không có chức năng đặt lệnh.**
+Ứng dụng chỉ xem giá Binance Spot, biểu đồ nến và chỉ báo MA/BOLL/MACD. **Không hỗ trợ giao dịch.**
 
-## Đã thiết lập GitHub Actions
+## Quy trình phát triển bằng ChatGPT + GitHub Actions
 
-- [Build & test ARM64](.github/workflows/build.yml): tự chạy khi mã nguồn hoặc tài nguyên thay đổi. Kiểm tra Go, build binary ARM64 tĩnh, đóng gói `Apps/BinanceGia.pak/` và lưu file ZIP ở mục **Artifacts**. **Không phát hành OTA** khi chỉ sửa code.
-- [Publish approved Binance OTA](.github/workflows/release.yml): **chỉ chạy khi bạn chủ động chọn Run workflow**. Tự kiểm thử, build ZIP, tạo GitHub Release, tính SHA-256 và cập nhật `manifest.json`.
-- [Publish OTA manifest](.github/workflows/publish-ota.yml): hỗ trợ tạo manifest khi GitHub Release được xuất bản thủ công.
+Repository dùng **hai workflow chính**:
 
-## Phát hành v0.29 (hoặc phiên bản tiếp theo)
+1. [Build & test ARM64](.github/workflows/build.yml): tự động khi `src/` hoặc `app/` thay đổi; chạy `go test`, `go vet`, build Linux ARM64 tĩnh, đóng gói `Apps/BinanceGia.pak/` và lưu bản thử nghiệm trong **Artifacts**. Workflow này **không phát hành OTA**.
+2. [Publish approved Binance OTA](.github/workflows/release.yml): chỉ chạy khi bạn tự bấm **Run workflow**, điền version và xác nhận **PUBLISH**. Sau khi kiểm thử, workflow tạo ZIP ARM64, tạo GitHub Release, tính SHA-256 và cập nhật `manifest.json` trên nhánh `main`.
 
-1. Truy cập [GitHub Actions](https://github.com/phongdinh91/trimui-binance-ota/actions).
-2. Chọn **Build & test ARM64** và kiểm tra lần build mới nhất có dấu tích xanh; bạn có thể tải **binance-arm64-test-build** ở trang chi tiết workflow để thử trên máy.
-3. Sau khi kiểm tra, chọn **Publish approved Binance OTA** → **Run workflow** → điền `v0.29` (hoặc phiên bản bạn muốn phát hành) → xác nhận.
-4. Chờ workflow xanh; kiểm tra ZIP trong [Releases](https://github.com/phongdinh91/trimui-binance-ota/releases) và `manifest.json` ở nhánh `main`.
+## Hướng dẫn phát hành v0.29
 
-**Lưu ý:** Tuyệt đối không phát hành OTA nếu chưa kiểm tra gói build trên TrimUI Brick Pro. Cập nhật lỗi có thể khiến app không chạy trên máy.
+1. Vào [Actions — Build & test ARM64](https://github.com/phongdinh91/trimui-binance-ota/actions/workflows/build.yml), bảo đảm lần build mới nhất **Success**.
+2. Nếu muốn thử trước, tải `binance-arm64-test-build` từ phần **Artifacts**, giải nén vào thẻ nhớ và kiểm tra trực tiếp trên Brick Pro.
+3. Mở [Publish approved Binance OTA](https://github.com/phongdinh91/trimui-binance-ota/actions/workflows/release.yml) → **Run workflow**.
+4. Điền `v0.29` ở trường **version**, chọn **PUBLISH**, rồi xác nhận chạy.
+5. Đợi workflow xanh và xem [Releases](https://github.com/phongdinh91/trimui-binance-ota/releases). File `manifest.json` sẽ trỏ tới ZIP vừa phát hành kèm checksum SHA-256.
 
-## Thiết bị
+**Quan trọng:** Chỉ xác nhận PUBLISH sau khi đã thử bản build trên máy. Không nên phát hành OTA bản chưa kiểm thử vì có thể làm ứng dụng không chạy.
 
-Ứng dụng đọc manifest tại:
+## Thiết bị và OTA
+
+Ứng dụng kiểm tra cập nhật qua URL:
 
 `https://raw.githubusercontent.com/phongdinh91/trimui-binance-ota/main/manifest.json`
 
-Trên Brick Pro, cần cài lần đầu phiên bản có `Apps/BinanceGia.pak/ota.json` trỏ về URL này (gói OTA Bootstrap v0.28 đã chuẩn bị). Sau đó máy bật Wi-Fi sẽ kiểm tra cập nhật và hỏi trước khi cài. Danh sách yêu thích, cài đặt và cache không nằm trong gói cài.
+Lần đầu cần cài bản Binance có `ota.json` trỏ tới URL trên (gói bootstrap v0.28 đã chuẩn bị trong ChatGPT). Khi có Wi-Fi và bản mới, app sẽ hỏi trước khi cập nhật. `favorites.json`, `settings.json`, `market-cache.json` và nhật ký **không nằm trong gói phát hành**, nên không bị đóng gói ghi đè.
 
-## Cấu trúc repo
+## Cấu trúc
 
-- `src/main.go`, `src/main_test.go`, `src/go.mod`: mã nguồn và kiểm thử.
-- `app/`: icon, ảnh giao diện, cấu hình, launcher, địa chỉ OTA.
-- `scripts/package.sh`: script đóng gói thay thế; tự đưa chứng chỉ CA vào gói để HTTPS hoạt động.
-- `.github/workflows/`: build và phát hành OTA theo phê duyệt.
+- `src/main.go`, `src/main_test.go`, `src/go.mod`: mã nguồn Go và kiểm thử.
+- `app/`: icon, ảnh giao diện, launcher, CA certificate được đưa vào ZIP trong workflow, cấu hình OTA.
+- `.github/workflows/build.yml`: tự động kiểm thử và build.
+- `.github/workflows/release.yml`: phát hành OTA với xác nhận PUBLISH.
+- `scripts/package.sh`: script đóng gói phụ trợ.
+
+Lịch sử những lần chạy workflow cũ vẫn có thể xuất hiện trong tab Actions, nhưng các workflow cũ trùng chức năng đã được loại bỏ khỏi repo.
