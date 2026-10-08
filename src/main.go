@@ -1748,6 +1748,7 @@ func applySearchKey(query, key string) string {
 const (
 	pageFavorites = 0
 	pageSearch    = 1
+	pageBusiness  = 2
 )
 
 func bottomTabsHeight(fb *framebuffer) int {
@@ -1755,35 +1756,31 @@ func bottomTabsHeight(fb *framebuffer) int {
 }
 
 func drawBottomTabs(fb *framebuffer, active int, hint string) {
-	footerH := bottomTabsHeight(fb)
-	y := fb.h - footerH
-	fb.rect(0, y, fb.w, footerH, cPanel)
-	margin := max(18, fb.w/50)
-	if hint != "" {
-		drawASCIIRatio(fb, margin, y+10, 3, 2, hint, cMuted)
-	}
-	tabScale := 2
-	tabY := y + 58
-	left := "TÌM KIẾM"
-	right := "YÊU THÍCH"
-	leftCenter := fb.w / 4
-	rightCenter := fb.w * 3 / 4
-	lineW := fb.w * 7 / 16
-	lineY := tabY + 7*tabScale + 10
-	lx := leftCenter - asciiWidth(tabScale, left)/2
-	rx := rightCenter - asciiWidth(tabScale, right)/2
-	lc, rc := cMuted, cMuted
-	if active == pageSearch {
-		lc = cYellow
-		fb.rect(leftCenter-lineW/2, lineY, lineW, 4, cYellow)
-	} else {
-		rc = cYellow
-		fb.rect(rightCenter-lineW/2, lineY, lineW, 4, cYellow)
-	}
-	drawASCII(fb, lx, tabY, tabScale, left, lc)
-	drawASCII(fb, lx+1, tabY, tabScale, left, lc)
-	drawASCII(fb, rx, tabY, tabScale, right, rc)
-	drawASCII(fb, rx+1, tabY, tabScale, right, rc)
+ footerH:=bottomTabsHeight(fb)
+ y:=fb.h-footerH
+ fb.rect(0,y,fb.w,footerH,cPanel)
+ margin:=max(18,fb.w/50)
+ if hint!="" {drawASCIIRatio(fb,margin,y+10,3,2,hint,cMuted)}
+ tabs:=[]struct{page int;label string}{
+  {pageSearch,"TÌM KIẾM"},{pageFavorites,"YÊU THÍCH"},{pageBusiness,"KINH DOANH"},
+ }
+ tabY:=y+58
+ for i,t:=range tabs {
+  center:=fb.w*(i*2+1)/6
+  x:=center-asciiWidth(2,t.label)/2
+  clr:=cMuted
+  if active==t.page {clr=cYellow;fb.rect(fb.w*i/3+7,tabY+24,fb.w/3-14,4,cYellow)}
+  drawASCII(fb,x,tabY,2,t.label,clr)
+ }
+}
+
+// L1/R1 switches between Search, Favorites, and Business (with wrap-around).
+func cycleMainPage(page,dir int)int {
+ ordered:=[]int{pageSearch,pageFavorites,pageBusiness}
+ for i,p:=range ordered {
+  if p==page {return ordered[(i+dir+len(ordered))%len(ordered)]}
+ }
+ return pageSearch
 }
 
 func favoriteTickers(all []ticker, favorites map[string]bool) []ticker {
@@ -2936,6 +2933,21 @@ func main() {
 	chartRange := settings.ChartRange
 	refreshIndex := settings.RefreshIndex
 	refreshEvery := refreshOptions[refreshIndex]
+ gold:=goldSnapshot{}
+ goldSel:=0
+ goldErr:=""
+ var goldLastAttempt time.Time
+ var goldFetching atomic.Bool
+ goldCh:=make(chan goldResult,1)
+ doGoldFetch:=func(){
+  if goldFetching.Swap(true){return}
+  goldLastAttempt=time.Now()
+  go func(){
+   g,e:=fetchGold24H(client)
+   goldCh<-goldResult{Snapshot:g,Err:e}
+   goldFetching.Store(false)
+  }()
+ }
 
 	// v0.13: màn chi tiết dùng B để quay lại; D-pad không đổi cặp coin.
 	page := pageSearch
@@ -3117,6 +3129,14 @@ func main() {
 			}
 			dirty = true
 
+		case gr := <-goldCh:
+   if gr.Err!=nil {goldErr=gr.Err.Error()} else {
+     gold=gr.Snapshot
+     goldErr=""
+     if goldSel>=len(gold.Quotes){goldSel=max(0,len(gold.Quotes)-1)}
+   }
+   dirty=true
+
 		case pr := <-pairCh:
 			if pr.err == nil && len(pr.pairs) > 0 && len(all) > 0 {
 				changed := false
@@ -3156,6 +3176,7 @@ func main() {
 				nextCursorBlink = now.Add(500 * time.Millisecond)
 				dirty = true
 			}
+			if !detail && page==pageBusiness && now.Sub(goldLastAttempt)>=goldRefreshInterval {doGoldFetch()}
 			if now.After(nextFetch) {
 				doFetch()
 				nextFetch = time.Now().Add(refreshEvery)
@@ -3274,7 +3295,9 @@ func main() {
 				case actUp:
 					if detail {
 						// Không đổi cặp bằng lên/xuống trong trang chi tiết.
-					} else if page == pageFavorites {
+					} else if page == pageBusiness {
+       if goldSel>0 {goldSel--;dirty=true}
+      } else if page == pageFavorites {
 						if favoriteSel >= 2 {
 							favoriteSel -= 2
 							dirty = true
@@ -3301,7 +3324,9 @@ func main() {
 
 				case actDown:
 					if detail {
-					} else if page == pageFavorites {
+					} else if page == pageBusiness {
+       if goldSel+1<len(gold.Quotes){goldSel++;dirty=true}
+      } else if page == pageFavorites {
 						fav := favoriteTickers(all, favorites)
 						if favoriteSel+2 < len(fav) {
 							favoriteSel += 2
@@ -3331,7 +3356,9 @@ func main() {
 				case actLeft:
 					if detail {
 						// v0.13: D-pad không đổi cặp coin trong màn hình chi tiết.
-					} else if page == pageFavorites {
+					} else if page == pageBusiness {
+      // Cuộn vàng bằng lên/xuống.
+     } else if page == pageFavorites {
 						if favoriteSel%2 == 1 {
 							favoriteSel--
 							dirty = true
@@ -3353,7 +3380,9 @@ func main() {
 				case actRight:
 					if detail {
 						// v0.13: D-pad không đổi cặp coin trong màn hình chi tiết.
-					} else if page == pageFavorites {
+					} else if page == pageBusiness {
+      // Cuộn vàng bằng lên/xuống.
+     } else if page == pageFavorites {
 						fav := favoriteTickers(all, favorites)
 						if favoriteSel%2 == 0 && favoriteSel+1 < len(fav) {
 							favoriteSel++
@@ -3376,7 +3405,9 @@ func main() {
 				case actA:
 					if detail {
 						// Chỉ xem dữ liệu, không đặt lệnh.
-					} else if page == pageFavorites {
+					} else if page == pageBusiness {
+      // Chỉ xem bảng giá, không giao dịch.
+     } else if page == pageFavorites {
 						fav := favoriteTickers(all, favorites)
 						if len(fav) > 0 && favoriteSel < len(fav) {
 							openDetail(fav[favoriteSel].Symbol)
@@ -3414,7 +3445,9 @@ func main() {
 						doPairFetch()
 						nextFetch = time.Now().Add(refreshEvery)
 						doChartFetch(detailSymbol, chartRange, true)
-					} else if page == pageFavorites {
+					} else if page == pageBusiness {
+      doGoldFetch()
+     } else if page == pageFavorites {
 						// Tab Yêu thích dùng tự động cập nhật, X không còn chức năng.
 					} else if page == pageSearch {
 						query = ""
@@ -3440,37 +3473,14 @@ func main() {
 						dirty = true
 					}
 
-				case actL1:
-					// Tab trái: Tìm kiếm. Đổi tab là xóa nội dung tìm kiếm.
-					if detail {
-						detail = false
-					}
-					if page != pageSearch {
-						query = ""
-						suggSel = 0
-						focusSuggestions = false
-						refreshSuggestions()
-					}
-					page = pageSearch
-					dirty = true
-
-				case actR1:
-					// Tab phải: Yêu thích. Rời Tìm kiếm là xóa nội dung tìm kiếm.
-					if detail {
-						detail = false
-					}
-					if page == pageSearch {
-						query = ""
-						suggSel = 0
-						focusSuggestions = false
-						refreshSuggestions()
-					}
-					page = pageFavorites
-					fav := favoriteTickers(all, favorites)
-					if favoriteSel >= len(fav) {
-						favoriteSel = max(0, len(fav)-1)
-					}
-					dirty = true
+				case actL1, actR1:
+     if detail {detail=false}
+     if page==pageSearch {
+      query="";suggSel=0;focusSuggestions=false;refreshSuggestions()
+     }
+     if ac==actR1 {page=cycleMainPage(page,1)} else {page=cycleMainPage(page,-1)}
+     if page==pageBusiness && (gold.FetchedAt.IsZero() || time.Since(gold.FetchedAt)>goldRefreshInterval) && time.Since(goldLastAttempt)>10*time.Second {doGoldFetch()}
+     dirty=true
 
 				case actSelect:
 					if detail {
@@ -3483,7 +3493,9 @@ func main() {
 							_ = saveFavorites(favorites)
 							dirty = true
 						}
-					} else if page == pageFavorites {
+					} else if page == pageBusiness {
+      // Chỉ xem bảng giá, không giao dịch.
+     } else if page == pageFavorites {
 						fav := favoriteTickers(all, favorites)
 						if len(fav) > 0 && favoriteSel < len(fav) {
 							delete(favorites, fav[favoriteSel].Symbol)
@@ -3526,7 +3538,9 @@ func main() {
 						page = detailFrom
 						dirty = true
 					}
-				} else if page == pageFavorites {
+				} else if page == pageBusiness {
+     renderBusiness(fb,gold,goldSel,goldFetching.Load(),goldErr)
+    } else if page == pageFavorites {
 					fav := favoriteTickers(all, favorites)
 					if favoriteSel >= len(fav) {
 						favoriteSel = max(0, len(fav)-1)
