@@ -1,0 +1,62 @@
+name: 00 - Import initial Binance source (one-time)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BinanceGia_Bootstrap_Source_v0.29.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate and import initial source archive
+        run: |
+          set -euo pipefail
+          ARCHIVE='BinanceGia_Bootstrap_Source_v0.29.zip'
+          test -s "$ARCHIVE"
+          if [[ -e src/main.go || -e app/config.json ]]; then
+            echo 'Source already imported; will not overwrite files.' >&2
+            exit 1
+          fi
+          unzip -tq "$ARCHIVE"
+          TEMP="$(mktemp -d)"
+          trap 'rm -rf "$TEMP"' EXIT
+          unzip -q "$ARCHIVE" -d "$TEMP"
+          for f in src/main.go src/main_test.go src/go.mod app/config.json app/launch.sh app/icon.png app/cacert.pem app/ota.json; do
+            test -s "$TEMP/$f"
+          done
+          test -d "$TEMP/app/assets"
+          cp -a "$TEMP/src" .
+          cp -a "$TEMP/app" .
+          echo 'Source files staged for initial import.'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+          cache: false
+      - name: Test source
+        working-directory: src
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Package first build (no release)
+        run: bash scripts/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: initial-verified-binance-build
+          path: dist/BinanceGia_TrimUI_StockOS_v*.zip
+          if-no-files-found: error
+      - name: Commit import and delete bootstrap archive
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src app
+          git rm -- BinanceGia_Bootstrap_Source_v0.29.zip
+          git commit -m 'Import validated Binance v0.29 source and app assets'
+          git push origin HEAD:main
