@@ -1,0 +1,9 @@
+/dist/
+/src/binance-gia
+/app/binance-gia
+**/favorites.json
+**/settings.json
+**/market-cache.json
+**/binance-gia.log
+*.log
+.DS_Store
