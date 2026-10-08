@@ -1,18 +1,10 @@
-name: Publish approved Binance OTA
+name: Auto publish Binance OTA on version bump
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version tag, e.g. v0.30 (run only after checking test build)"
-        required: true
-        type: string
-      confirmation:
-        description: "Xác nhận phát hành OTA cho người dùng"
-        required: true
-        type: choice
-        options:
-          - PUBLISH
+  push:
+    branches: [main]
+    paths:
+      - src/main.go
 
 permissions:
   contents: write
@@ -22,45 +14,90 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    if: ${{ inputs.confirmation == 'PUBLISH' }}
+  check-version:
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.version.outputs.publish }}
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Validate version
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+$ ]] || { echo "Version must look like v0.30"; exit 1; }
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
+      - name: Only publish if appVersion increased
+        id: version
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          def version(text):
+              match = re.search(r'(?m)^\s*appVersion\s*=\s*"(v\d+(?:\.\d+){1,2})"', text)
+              if not match:
+                  raise SystemExit("Could not parse appVersion in src/main.go")
+              return match.group(1)
+
+          def numbers(v):
+              return tuple(int(x) for x in v[1:].split("."))
+
+          before_sha = os.environ.get("BEFORE_SHA", "")
+          current = version(Path("src/main.go").read_text())
+          should_publish = False
+
+          if before_sha and set(before_sha) != {"0"}:
+              old_file = subprocess.run(
+                  ["git", "show", f"{before_sha}:src/main.go"],
+                  text=True, capture_output=True, check=False,
+              )
+              if old_file.returncode == 0:
+                  previous = version(old_file.stdout)
+                  should_publish = numbers(current) > numbers(previous)
+                  print(f"App version: {previous} -> {current}; publish={should_publish}")
+              else:
+                  print("No previous source file: initial import will not auto-publish")
+          else:
+              print("No prior commit: skipping automatic release")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"publish={str(should_publish).lower()}\n")
+              out.write(f"version={current}\n")
+          PY
+
+  publish:
+    needs: check-version
+    if: needs.check-version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: src/go.mod
           cache: false
-      - name: Stamp approved app version
-        env:
-          VERSION: ${{ inputs.version }}
+
+      - name: Verify version is not already released
         run: |
-          python3 - <<'PY'
-          import os, pathlib, re
-          path = pathlib.Path("src/main.go")
-          content = path.read_text()
-          version = os.environ["VERSION"]
-          updated, n = re.subn(r'(?m)^(\s*appVersion\s*=\s*)"v[0-9]+\.[0-9]+"',
-                               lambda m: m.group(1) + '"' + version + '"',
-                               content, count=1)
-          if n != 1:
-              raise SystemExit("Could not stamp appVersion")
-          path.write_text(updated)
-          PY
-      - name: Test and vet
+          set -euo pipefail
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists; refusing to replace it"
+            exit 1
+          fi
+
+      - name: Test and vet before publishing
         working-directory: src
         run: |
           go test ./...
           go vet ./...
-      - name: Build static ARM64
+
+      - name: Build static Linux ARM64 binary
         working-directory: src
         env:
           GOOS: linux
@@ -69,54 +106,76 @@ jobs:
         run: |
           mkdir -p ../dist/Apps/BinanceGia.pak
           go build -trimpath -ldflags="-s -w" -o ../dist/Apps/BinanceGia.pak/binance-gia .
-      - name: Prepare release ZIP
-        env:
-          VERSION: ${{ inputs.version }}
+          file ../dist/Apps/BinanceGia.pak/binance-gia
+
+      - name: Package and validate TrimUI Stock OS ZIP
         run: |
           set -euo pipefail
-          cp -a app/. dist/Apps/BinanceGia.pak/
-          # Stock OS may not ship trusted HTTPS roots. Bundle system CA certificates.
-          cp /etc/ssl/certs/ca-certificates.crt dist/Apps/BinanceGia.pak/cacert.pem
-          test -f dist/Apps/BinanceGia.pak/config.json
-          test -f dist/Apps/BinanceGia.pak/launch.sh
-          test -f dist/Apps/BinanceGia.pak/icon.png
-          chmod +x dist/Apps/BinanceGia.pak/launch.sh dist/Apps/BinanceGia.pak/binance-gia
-          cd dist
-          zip -q -r "../BinanceGia_TrimUI_StockOS_${VERSION}.zip" Apps
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          PKG="dist/Apps/BinanceGia.pak"
+          cp -a app/. "$PKG/"
+          cp /etc/ssl/certs/ca-certificates.crt "$PKG/cacert.pem"
+          for path in binance-gia launch.sh config.json icon.png ota.json cacert.pem; do
+            test -s "$PKG/$path"
+          done
+          test -d "$PKG/assets"
+          chmod +x "$PKG/launch.sh" "$PKG/binance-gia"
+          (cd dist && zip -q -X -r "../BinanceGia_TrimUI_StockOS_${VERSION}.zip" Apps)
+          unzip -tq "BinanceGia_TrimUI_StockOS_${VERSION}.zip"
+          sha256sum "BinanceGia_TrimUI_StockOS_${VERSION}.zip"
+
+      - name: Publish release ZIP
         run: |
           set -euo pipefail
-          ! gh release view "$VERSION" >/dev/null 2>&1 || { echo "Release already exists"; exit 1; }
-          gh release create "$VERSION" "BinanceGia_TrimUI_StockOS_${VERSION}.zip" \
-            --target "$GITHUB_SHA" --title "BINANCE $VERSION" \
-            --notes "Read-only Binance Spot prices, chart indicators, and OTA for TrimUI Brick Pro Stock OS."
-      - name: Publish verified manifest
-        env:
-          VERSION: ${{ inputs.version }}
-          REPOSITORY: ${{ github.repository }}
+          ZIP="BinanceGia_TrimUI_StockOS_${VERSION}.zip"
+          gh release create "$VERSION" "$ZIP" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "BINANCE $VERSION" \
+            --notes "Automatic tested ARM64 release for TrimUI Brick Pro Stock OS. The device asks before installation."
+
+      - name: Verify uploaded release asset
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import hashlib, json, os
+          ZIP="BinanceGia_TrimUI_StockOS_${VERSION}.zip"
+          mkdir -p "$RUNNER_TEMP/binance-ota-verify"
+          gh release download "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$ZIP" \
+            --dir "$RUNNER_TEMP/binance-ota-verify"
+          cmp "$ZIP" "$RUNNER_TEMP/binance-ota-verify/$ZIP"
+
+      - name: Publish SHA-256 manifest to main
+        run: |
+          set -euo pipefail
+          ZIP="BinanceGia_TrimUI_StockOS_${VERSION}.zip"
+          SHA="$(sha256sum "$ZIP" | awk '{print $1}')"
+          git fetch origin main
+          git switch -C ota-manifest-update origin/main
+          OTA_SHA="$SHA" python3 - <<'PY'
+          import json, os
           from pathlib import Path
-          v = os.environ["VERSION"]
-          repo = os.environ["REPOSITORY"]
-          file = Path(f"BinanceGia_TrimUI_StockOS_{v}.zip")
-          assert file.is_file(), "Release ZIP missing"
+
+          version = os.environ["VERSION"]
+          def numeric(text):
+              return tuple(int(x) for x in text.lstrip("v").split("."))
+
+          dest = Path("manifest.json")
+          if dest.exists():
+              old = json.loads(dest.read_text()).get("version", "v0.0")
+              if numeric(old) >= numeric(version):
+                  raise SystemExit(f"Refusing to replace current OTA manifest {old} with {version}")
+
+          package = f"BinanceGia_TrimUI_StockOS_{version}.zip"
           body = {
-            "version": v,
-            "url": f"https://github.com/{repo}/releases/download/{v}/{file.name}",
-            "sha256": hashlib.sha256(file.read_bytes()).hexdigest(),
-            "notes": f"BINANCE {v} — TrimUI Brick Pro Stock OS"
+              "version": version,
+              "url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/{version}/{package}",
+              "sha256": os.environ["OTA_SHA"],
+              "notes": f"BINANCE {version} — TrimUI Brick Pro Stock OS",
           }
-          Path("manifest.json").write_text(json.dumps(body, indent=2, ensure_ascii=False) + "\n")
+          dest.write_text(json.dumps(body, ensure_ascii=False, indent=2) + "\n")
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main.go manifest.json
-          git commit -m "OTA: publish ${VERSION}"
-          git pull --rebase origin main
+          git add manifest.json
+          git commit -m "OTA: publish $VERSION manifest"
           git push origin HEAD:main
