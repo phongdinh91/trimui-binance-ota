@@ -1,0 +1,58 @@
+name: Build & test ARM64
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "app/**"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "app/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+          cache: false
+      - name: Unit tests and vet
+        working-directory: src
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Build static ARM64
+        working-directory: src
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p ../dist/Apps/BinanceGia.pak
+          go build -trimpath -ldflags="-s -w" -o ../dist/Apps/BinanceGia.pak/binance-gia .
+          file ../dist/Apps/BinanceGia.pak/binance-gia
+      - name: Package Stock OS app
+        run: |
+          set -euo pipefail
+          cp -a app/. dist/Apps/BinanceGia.pak/
+          test -f dist/Apps/BinanceGia.pak/config.json
+          test -f dist/Apps/BinanceGia.pak/launch.sh
+          test -f dist/Apps/BinanceGia.pak/icon.png
+          chmod +x dist/Apps/BinanceGia.pak/launch.sh dist/Apps/BinanceGia.pak/binance-gia
+          cd dist
+          zip -q -r ../BinanceGia_Build_Staging.zip Apps
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binance-arm64-test-build
+          path: BinanceGia_Build_Staging.zip
+          if-no-files-found: error
