@@ -1,0 +1,7 @@
+{
+  "label": "Binance",
+  "icon": "icon.png",
+  "iconsel": "icon.png",
+  "launch": "launch.sh",
+  "description": "Binance Spot chỉ đọc - MA BOLL MACD - OTA GitHub Releases"
+}
