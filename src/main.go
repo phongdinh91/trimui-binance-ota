@@ -26,6 +26,7 @@ import (
 	"unsafe"
 )
 
+// appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
 	appVersion          = "v0.29"
 	cacheSaveInterval   = 2 * time.Minute
