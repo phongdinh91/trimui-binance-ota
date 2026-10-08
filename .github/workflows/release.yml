@@ -7,6 +7,12 @@ on:
         description: "Version tag, e.g. v0.30 (run only after checking test build)"
         required: true
         type: string
+      confirmation:
+        description: "Xác nhận phát hành OTA cho người dùng"
+        required: true
+        type: choice
+        options:
+          - PUBLISH
 
 permissions:
   contents: write
@@ -17,6 +23,7 @@ concurrency:
 
 jobs:
   publish:
+    if: ${{ inputs.confirmation == 'PUBLISH' }}
     runs-on: ubuntu-latest
     steps:
       - name: Validate version
