@@ -1,0 +1,84 @@
+name: Publish Binance OTA manifest
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: binance-ota-manifest
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download release ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/binance-ota
+          gh release download "$RELEASE_TAG" \
+            --repo "$REPOSITORY" \
+            --pattern "BinanceGia_TrimUI_StockOS_${RELEASE_TAG}.zip" \
+            --dir /tmp/binance-ota
+
+      - name: Validate package and generate manifest
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, zipfile
+          from pathlib import Path
+          tag = os.environ['RELEASE_TAG']
+          repo = os.environ['REPOSITORY']
+          if not tag.startswith('v') or not tag[1:].replace('.', '').isdigit():
+              raise SystemExit('Invalid release tag')
+          name = f'BinanceGia_TrimUI_StockOS_{tag}.zip'
+          archive = Path('/tmp/binance-ota') / name
+          if not archive.is_file():
+              raise SystemExit(f'Missing release asset: {name}')
+          with zipfile.ZipFile(archive) as z:
+              entries = set(z.namelist())
+              required = {
+                  'Apps/BinanceGia.pak/binance-gia',
+                  'Apps/BinanceGia.pak/config.json',
+                  'Apps/BinanceGia.pak/launch.sh',
+              }
+              if not required.issubset(entries):
+                  raise SystemExit('Release asset missing required app files')
+          sha = hashlib.sha256(archive.read_bytes()).hexdigest()
+          manifest = {
+              'version': tag,
+              'url': f'https://github.com/{repo}/releases/download/{tag}/{name}',
+              'sha256': sha,
+              'notes': f'Binance {tag} for TrimUI Brick Pro Stock OS'
+          }
+          Path('manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
+          print('SHA-256:', sha)
+          PY
+
+      - name: Publish manifest to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          if git diff --cached --quiet; then
+            echo 'Manifest is already current'
+            exit 0
+          fi
+          git commit -m "OTA: publish ${{ github.event.release.tag_name }}"
+          git push origin HEAD:main
