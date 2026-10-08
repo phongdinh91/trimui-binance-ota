@@ -5,7 +5,7 @@ cd "$ROOT"
 test -f src/main.go
 test -f src/main_test.go
 test -f src/go.mod
-for f in launch.sh config.json icon.png ota.json cacert.pem; do
+for f in launch.sh config.json icon.png ota.json; do
   test -s "app/$f"
 done
 test -d app/assets
@@ -27,6 +27,7 @@ trap 'rm -rf "$TMP"' EXIT
 PKG="$TMP/Apps/BinanceGia.pak"
 mkdir -p "$PKG"
 cp -a app/. "$PKG/"
+cp /etc/ssl/certs/ca-certificates.crt "$PKG/cacert.pem"
 chmod +x "$PKG/launch.sh"
 
 (
