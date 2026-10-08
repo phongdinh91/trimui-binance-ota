@@ -1,0 +1,38 @@
+name: 01 - Build and test (no release)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'app/**'
+      - 'scripts/**'
+      - '.github/workflows/01-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+          cache: false
+      - name: Test and vet
+        working-directory: src
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Build ARM64 and package
+        run: bash scripts/package.sh
+      - name: Save tested ZIP (not published as OTA)
+        uses: actions/upload-artifact@v4
+        with:
+          name: binance-test-build
+          path: dist/BinanceGia_TrimUI_StockOS_v*.zip
+          if-no-files-found: error
+          retention-days: 14
