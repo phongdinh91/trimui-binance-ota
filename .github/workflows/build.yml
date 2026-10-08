@@ -45,6 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           cp -a app/. dist/Apps/BinanceGia.pak/
+          # Stock OS may not ship trusted HTTPS roots. Bundle system CA certificates.
+          cp /etc/ssl/certs/ca-certificates.crt dist/Apps/BinanceGia.pak/cacert.pem
           test -f dist/Apps/BinanceGia.pak/config.json
           test -f dist/Apps/BinanceGia.pak/launch.sh
           test -f dist/Apps/BinanceGia.pak/icon.png
