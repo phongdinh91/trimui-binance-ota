@@ -1796,7 +1796,8 @@ func favoriteTickers(all []ticker, favorites map[string]bool) []ticker {
 		qi, qj := quotePriority(xs[i].QuoteAsset), quotePriority(xs[j].QuoteAsset)
 		if qi != qj {
 			return qi < qj
-		}		if xs[i].QuoteVolume != xs[j].QuoteVolume {
+		}
+		if xs[i].QuoteVolume != xs[j].QuoteVolume {
 			return xs[i].QuoteVolume > xs[j].QuoteVolume
 		}
 		return pairLabel(xs[i]) < pairLabel(xs[j])
@@ -2695,7 +2696,8 @@ func renderTradingMainChart(fb *framebuffer, x, y, w, h int, pts []chartPoint, c
 	priceY := func(v float64) int { return plotY + plotH - int((v-minV)/(maxV-minV)*float64(plotH)) }
 	closes := closeSeries(pts)
 	ma5 := smaSeries(closes, 5)
-	ma10 := smaSeries(closes, 10)	mid := smaSeries(closes, 20)
+	ma10 := smaSeries(closes, 10)
+	mid := smaSeries(closes, 20)
 	std := rollingStdSeries(closes, 20)
 	bx5, by5 := make([]int, len(pts)), make([]int, len(pts))
 	bx10, by10 := make([]int, len(pts)), make([]int, len(pts))
