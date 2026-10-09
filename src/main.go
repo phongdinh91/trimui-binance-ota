@@ -3335,114 +3335,78 @@ func main() {
 					dirty = true
 					continue
 
+
 				case actUp:
 					if detail {
-						// Không đổi cặp bằng lên/xuống trong trang chi tiết.
-					} else if page == pageBusiness {
-       if goldSel>0 {goldSel--;dirty=true}
-      } else if page == pageFavorites {
-						if favoriteSel >= 2 {
-							favoriteSel -= 2
-							dirty = true
-						}
+						// Keep selected coin while viewing chart.
+					} else if page==pageBusiness || page==pageHitech {
+                        switch newsView {
+                        case 0: if newsCategorySel>=2 {newsCategorySel-=2;dirty=true}
+                        case 1: if newsArticleSel>0 {newsArticleSel--;dirty=true}
+                        case 3: if goldSel>0 {goldSel--;dirty=true}
+                        }
+					} else if page == pageFavorites {
+						if favoriteSel >= 2 {favoriteSel -= 2;dirty = true}
 					} else if focusSuggestions {
-						if len(suggestions) > 0 {
-							if suggSel > 0 {
-								suggSel--
-							} else {
-								suggSel = len(suggestions) - 1
-							}
-							dirty = true
+						if len(suggestions)>0 {
+							if suggSel>0 {suggSel--} else {suggSel=len(suggestions)-1}
+							dirty=true
 						}
 					} else {
-						nr, nc, exited := moveKeyboardBounded(kbRow, kbCol, -1, 0)
-						if exited && len(suggestions) > 0 {
-							focusSuggestions = true
-							suggSel = len(suggestions) - 1
-						} else {
-							kbRow, kbCol = nr, nc
-						}
-						dirty = true
+						nr,nc,exited:=moveKeyboardBounded(kbRow,kbCol,-1,0)
+						if exited && len(suggestions)>0 {focusSuggestions=true;suggSel=len(suggestions)-1} else {kbRow,kbCol=nr,nc}
+						dirty=true
 					}
+
 
 				case actDown:
 					if detail {
-					} else if page == pageBusiness {
-       if goldSel+1<len(gold.Quotes){goldSel++;dirty=true}
-      } else if page == pageFavorites {
-						fav := favoriteTickers(all, favorites)
-						if favoriteSel+2 < len(fav) {
-							favoriteSel += 2
-							dirty = true
-						}
+					} else if page==pageBusiness || page==pageHitech {
+                        switch newsView {
+                        case 0: if newsCategorySel+2<len(newsCategories(page)){newsCategorySel+=2;dirty=true}
+                        case 1: if newsArticleSel+1<len(newsItems){newsArticleSel++;dirty=true}
+                        case 3: if goldSel+1<len(gold.Quotes){goldSel++;dirty=true}
+                        }
+					} else if page==pageFavorites {
+						fav:=favoriteTickers(all,favorites)
+						if favoriteSel+2<len(fav){favoriteSel+=2;dirty=true}
 					} else if focusSuggestions {
-						// Duyệt vòng: cặp cuối + xuống quay về cặp đầu.
-						if len(suggestions) > 0 {
-							if suggSel+1 < len(suggestions) {
-								suggSel++
-							} else {
-								suggSel = 0
-							}
-							dirty = true
-						}
+						if len(suggestions)>0 {suggSel=(suggSel+1)%len(suggestions);dirty=true}
 					} else {
-						nr, nc, exited := moveKeyboardBounded(kbRow, kbCol, 1, 0)
-						if exited && len(suggestions) > 0 {
-							focusSuggestions = true
-							suggSel = len(suggestions) - 1
-						} else {
-							kbRow, kbCol = nr, nc
-						}
-						dirty = true
+						nr,nc,exited:=moveKeyboardBounded(kbRow,kbCol,1,0)
+						if exited && len(suggestions)>0 {focusSuggestions=true;suggSel=len(suggestions)-1} else {kbRow,kbCol=nr,nc}
+						dirty=true
 					}
+
 
 				case actLeft:
 					if detail {
-						// v0.13: D-pad không đổi cặp coin trong màn hình chi tiết.
-					} else if page == pageBusiness {
-      // Cuộn vàng bằng lên/xuống.
-     } else if page == pageFavorites {
-						if favoriteSel%2 == 1 {
-							favoriteSel--
-							dirty = true
-						}
+					} else if page==pageBusiness || page==pageHitech {
+                       if newsView==0 && newsCategorySel%2==1 {newsCategorySel--;dirty=true}
+					} else if page==pageFavorites {
+						if favoriteSel%2==1{favoriteSel--;dirty=true}
 					} else if focusSuggestions {
-						focusSuggestions = false
-						dirty = true
+						focusSuggestions=false;dirty=true
 					} else {
-						nr, nc, exited := moveKeyboardBounded(kbRow, kbCol, 0, -1)
-						if exited && len(suggestions) > 0 {
-							focusSuggestions = true
-							suggSel = len(suggestions) - 1
-						} else {
-							kbRow, kbCol = nr, nc
-						}
-						dirty = true
+						nr,nc,exited:=moveKeyboardBounded(kbRow,kbCol,0,-1)
+						if exited && len(suggestions)>0 {focusSuggestions=true;suggSel=len(suggestions)-1} else {kbRow,kbCol=nr,nc}
+						dirty=true
 					}
+
 
 				case actRight:
 					if detail {
-						// v0.13: D-pad không đổi cặp coin trong màn hình chi tiết.
-					} else if page == pageBusiness {
-      // Cuộn vàng bằng lên/xuống.
-     } else if page == pageFavorites {
-						fav := favoriteTickers(all, favorites)
-						if favoriteSel%2 == 0 && favoriteSel+1 < len(fav) {
-							favoriteSel++
-							dirty = true
-						}
+					} else if page==pageBusiness || page==pageHitech {
+                       if newsView==0 && newsCategorySel%2==0 && newsCategorySel+1<len(newsCategories(page)){newsCategorySel++;dirty=true}
+					} else if page==pageFavorites {
+						fav:=favoriteTickers(all,favorites)
+						if favoriteSel%2==0 && favoriteSel+1<len(fav){favoriteSel++;dirty=true}
 					} else if focusSuggestions {
-						focusSuggestions = false
-						dirty = true
+						focusSuggestions=false;dirty=true
 					} else {
-						nr, nc, exited := moveKeyboardBounded(kbRow, kbCol, 0, 1)
-						if exited && len(suggestions) > 0 {
-							focusSuggestions = true
-							suggSel = len(suggestions) - 1
-						} else {
-							kbRow, kbCol = nr, nc
-						}
-						dirty = true
+						nr,nc,exited:=moveKeyboardBounded(kbRow,kbCol,0,1)
+						if exited && len(suggestions)>0 {focusSuggestions=true;suggSel=len(suggestions)-1} else {kbRow,kbCol=nr,nc}
+						dirty=true
 					}
 
 				case actA:
