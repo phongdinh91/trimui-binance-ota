@@ -3010,9 +3010,8 @@ func main() {
 	}
 
 	doOTACheck := func() {
-		if !otaCfg.CheckOnStart || strings.TrimSpace(otaCfg.ManifestURL) == "" {
-			return
-		}
+        // Manual-only: settings button triggers this; OTA config's checkOnStart is ignored.
+		if strings.TrimSpace(otaCfg.ManifestURL) == "" {return}
 		if otaChecking.Swap(true) {
 			return
 		}
@@ -3085,7 +3084,7 @@ func main() {
 	dirty := true
 	doFetch()
 	doPairFetch()
-	doOTACheck()
+    // OTA is intentionally never checked on startup.
 	nextFetch := time.Now().Add(refreshEvery)
     lastHeaderMinute:=time.Now().Unix()/60
 	tick := time.NewTicker(16 * time.Millisecond)
@@ -3101,12 +3100,20 @@ func main() {
 	for {
 		select {
 		case oc := <-otaCheckCh:
-			if oc.Err == nil && isNewerVersion(oc.Manifest.Version, appVersion) {
-				otaAvailable = oc.Manifest
-				otaPrompt = true
-				otaChoice = 0
-				dirty = true
-			}
+            if oc.Err!=nil {
+                otaStatusTitle="KHÔNG THỂ KIỂM TRA OTA"
+                otaStatusMsg=oc.Err.Error()
+                otaStatusVisible=true
+            } else if isNewerVersion(oc.Manifest.Version,appVersion) {
+                otaAvailable=oc.Manifest
+                otaPrompt=true
+                otaChoice=0
+            } else {
+                otaStatusTitle="ĐÃ LÀ PHIÊN BẢN MỚI NHẤT"
+                otaStatusMsg="PHIÊN BẢN HIỆN TẠI: "+appVersion
+                otaStatusVisible=true
+            }
+            dirty=true
 
 		case p := <-otaProgressCh:
             if otaUpdating.Load() {
@@ -3353,7 +3360,9 @@ func main() {
 				case actUp:
 					if detail {
 						// Keep selected coin while viewing chart.
-					} else if page==pageBusiness || page==pageHitech {
+					} else if page==pageSettings {
+                        if !settingsAboutVisible&&settingsSelected>0 {settingsSelected--;dirty=true}
+                    } else if page==pageBusiness || page==pageHitech {
                         switch newsView {
                         case 0: if newsCategorySel>=2 {newsCategorySel-=2;dirty=true}
                         case 1: if newsArticleSel>0 {newsArticleSel--;dirty=true}
@@ -3376,7 +3385,9 @@ func main() {
 
 				case actDown:
 					if detail {
-					} else if page==pageBusiness || page==pageHitech {
+					} else if page==pageSettings {
+                        if !settingsAboutVisible&&settingsSelected<settingsItemCount-1 {settingsSelected++;dirty=true}
+                    } else if page==pageBusiness || page==pageHitech {
                         switch newsView {
                         case 0: if newsCategorySel+2<len(newsCategories(page)){newsCategorySel+=2;dirty=true}
                         case 1: if newsArticleSel+1<len(newsItems){newsArticleSel++;dirty=true}
@@ -3539,6 +3550,7 @@ func main() {
 						query="";suggSel=0;focusSuggestions=false;refreshSuggestions()
 					}
 					if ac==actR1 {page=cycleMainPage(page,1)} else {page=cycleMainPage(page,-1)}
+                    settingsAboutVisible=false
 					newsView=0;newsCategorySel=0;newsArticleSel=0
 					dirty=true
 
