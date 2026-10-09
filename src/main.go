@@ -2901,10 +2901,12 @@ func main() {
 
 	assets := loadAssets()
 	client := &http.Client{Timeout: 10 * time.Second}
-	otaClient := &http.Client{Timeout: 45 * time.Second}
+	otaClient := &http.Client{Timeout: 5 * time.Minute}
 	otaCfg := loadOTAConfig()
 	otaCheckCh := make(chan otaCheckResult, 1)
 	otaUpdateCh := make(chan otaUpdateResult, 1)
+	otaProgressCh := make(chan otaProgressEvent, 64)
+	otaCurrentProgress := otaProgressEvent{Stage: "download"}
 	var otaChecking atomic.Bool
 	var otaUpdating atomic.Bool
 	otaPrompt := false
@@ -3012,7 +3014,16 @@ func main() {
 			return
 		}
 		go func() {
-			e := performOTA(otaClient, m)
+            report := func(p otaProgressEvent) {
+                select {
+                case otaProgressCh <- p:
+                default:
+                    // Keep the newest progress event if the UI lags behind network.
+                    select {case <-otaProgressCh: default:}
+                    select {case otaProgressCh <- p: default:}
+                }
+            }
+			e := performOTAWithProgress(otaClient, m, report)
 			otaUpdateCh <- otaUpdateResult{Version: m.Version, Err: e}
 			otaUpdating.Store(false)
 		}()
@@ -3081,6 +3092,12 @@ func main() {
 				otaChoice = 0
 				dirty = true
 			}
+
+		case p := <-otaProgressCh:
+            if otaUpdating.Load() {
+                otaCurrentProgress = p
+                dirty = true
+            }
 
 		case ou := <-otaUpdateCh:
 			otaStatusVisible = true
@@ -3219,6 +3236,7 @@ func main() {
 							otaStatusTitle = "ĐANG CẬP NHẬT OTA"
 							otaStatusMsg = "ĐANG TẢI VÀ KIỂM TRA SHA-256..."
 							otaRestartReady = false
+                            otaCurrentProgress = otaProgressEvent{Stage:"download",Done:0,Total:0}
 							startOTAUpdate(otaAvailable)
 						} else {
 							otaPrompt = false
@@ -3581,7 +3599,11 @@ func main() {
 					renderOTAPrompt(fb, otaAvailable, otaChoice)
 				}
 				if otaStatusVisible {
-					renderOTAStatus(fb, otaStatusTitle, otaStatusMsg, otaRestartReady)
+                    if otaUpdating.Load() {
+                        renderOTAProgress(fb,otaCurrentProgress,otaAvailable.Version)
+                    } else {
+                        renderOTAStatus(fb, otaStatusTitle, otaStatusMsg, otaRestartReady)
+                    }
 				}
 				fb.flush()
 				dirty = false
