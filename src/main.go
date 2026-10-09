@@ -2522,7 +2522,7 @@ func drawPolyline(fb *framebuffer, xs, ys []int, start int, cc color) {
 }
 
 func renderDetail(fb *framebuffer, a uiAssets, t ticker, pts []chartPoint, chartLoading bool, chartErr string, favorite bool, updated time.Time, stale bool, rangeLabel string, refreshEvery time.Duration) {
-	fb.fill(color{10, 11, 16})
+	fb.fill(cBg)
 	margin := max(18, fb.w/44)
 	footerH := max(44, fb.h/14)
 	headerH := max(96, fb.h/7)
@@ -2530,7 +2530,7 @@ func renderDetail(fb *framebuffer, a uiAssets, t ticker, pts []chartPoint, chart
 	contentBottom := fb.h - footerH - 10
 
 	// Header kiểu trading app.
-	fb.rect(0, 0, fb.w, headerH, color{14, 15, 20})
+	fb.rect(0, 0, fb.w, headerH, cPanel)
 	sym := pairLabel(t)
 	drawASCII(fb, margin, 10, 1, "BTC"[:0]+sym, cText)
 	priceTxt := fmtPrice(t.Price)
@@ -2587,7 +2587,7 @@ func renderDetail(fb *framebuffer, a uiAssets, t ticker, pts []chartPoint, chart
 	panelY := contentTop
 	panelW := fb.w - 2*margin
 	panelH := contentBottom - contentTop
-	fb.rect(panelX, panelY, panelW, panelH, color{16, 18, 24})
+	fb.rect(panelX, panelY, panelW, panelH, cPanel2)
 	// Main candle chart area + Volume + MACD
 	mainH := panelH * 62 / 100
 	volH := panelH * 14 / 100
@@ -2597,13 +2597,13 @@ func renderDetail(fb *framebuffer, a uiAssets, t ticker, pts []chartPoint, chart
 	renderVolumePanel(fb, mainX, mainY+mainH+4, mainW, volH, pts)
 	renderMACDPanel(fb, mainX, mainY+mainH+volH+8, mainW, macdH, pts)
 
-	fb.rect(0, fb.h-footerH, fb.w, footerH, color{14, 15, 20})
+	fb.rect(0, fb.h-footerH, fb.w, footerH, cPanel)
     drawEvenFooterHints(fb,"B: QUAY LẠI  Y: KHUNG TG  SELECT: GẮN SAO  MENU: THOÁT",fb.h-footerH+14)
     drawASCII(fb,fb.w-margin-asciiWidth(1,appVersion),fb.h-20,1,appVersion,cMuted)
 }
 
 func renderTradingMainChart(fb *framebuffer, x, y, w, h int, pts []chartPoint, currentPrice float64, loading bool, errMsg, rangeLabel string) {
-	fb.rect(x, y, w, h, color{14, 16, 22})
+	fb.rect(x, y, w, h, cPanel)
 	drawASCII(fb, x+8, y+6, 1, "Chart  "+rangeLabel, cMuted)
 	if loading && len(pts) == 0 {
 		drawASCII(fb, x+8, y+28, 2, "ĐANG TẢI...", cMuted)
@@ -2642,10 +2642,10 @@ func renderTradingMainChart(fb *framebuffer, x, y, w, h int, pts []chartPoint, c
 	plotX, plotY := x+8, y+22
 	plotW, plotH := w-56, h-30
 	for i := 0; i < 4; i++ {
-		fb.hline(plotX, plotY+i*plotH/3, plotW, color{32, 35, 44})
+		fb.hline(plotX, plotY+i*plotH/3, plotW, cMuted)
 	}
 	for i := 1; i <= 3; i++ {
-		fb.line(plotX+i*plotW/4, plotY, plotX+i*plotW/4, plotY+plotH, color{22, 24, 31})
+		fb.line(plotX+i*plotW/4, plotY, plotX+i*plotW/4, plotY+plotH, cMuted)
 	}
 	denom := len(pts) - 1
 	if denom < 1 {
@@ -2748,7 +2748,7 @@ func renderTradingMainChart(fb *framebuffer, x, y, w, h int, pts []chartPoint, c
 }
 
 func renderVolumePanel(fb *framebuffer, x, y, w, h int, pts []chartPoint) {
-	fb.rect(x, y, w, h, color{18, 20, 27})
+	fb.rect(x, y, w, h, cPanel)
 	if len(pts) < 2 {
 		return
 	}
@@ -2785,7 +2785,7 @@ func renderVolumePanel(fb *framebuffer, x, y, w, h int, pts []chartPoint) {
 }
 
 func renderMACDPanel(fb *framebuffer, x, y, w, h int, pts []chartPoint) {
-	fb.rect(x, y, w, h, color{18, 18, 24})
+	fb.rect(x, y, w, h, cPanel)
 	drawASCII(fb, x+8, y+4, 1, "MACD", cMuted)
 	if len(pts) < 2 {
 		return
@@ -2795,7 +2795,7 @@ func renderMACDPanel(fb *framebuffer, x, y, w, h int, pts []chartPoint) {
 	plotX, plotY := x+6, y+16
 	plotW, plotH := w-12, h-20
 	zeroY := plotY + plotH/2
-	fb.hline(plotX, zeroY, plotW, color{72, 72, 82})
+	fb.hline(plotX, zeroY, plotW, cMuted)
 	maxAbs := 0.0
 	for i := range hist {
 		if math.Abs(hist[i]) > maxAbs {
@@ -2901,6 +2901,9 @@ func main() {
     settingsSelected:=settingsOTA
     settingsAboutVisible:=false
     ledStatus:=""
+    if settings.LEDMode!=ledSystem {
+        if err:=applyBrickLED(settings.LEDMode);err!=nil{ledStatus=err.Error()}
+    }
 	all, lastUpdated := loadCache()
 	stale := len(all) > 0
 	lastCacheSave := lastUpdated
