@@ -1116,6 +1116,8 @@ type settingsFile struct {
 	RefreshIndex  int  `json:"refreshIndex"`
     ThemeLight    bool `json:"themeLight"`
     LEDMode       int  `json:"ledMode"`
+    LEDBrightness int `json:"ledBrightness"`
+    LEDSpeed int `json:"ledSpeed"`
 }
 
 func normalizeSettings(s settingsFile) settingsFile {
@@ -1129,17 +1131,19 @@ func normalizeSettings(s settingsFile) settingsFile {
 		s.RefreshIndex = defaultRefreshIndex
 	}
     if s.LEDMode<0 || s.LEDMode>=ledModeCount{s.LEDMode=ledSystem}
+    if s.LEDBrightness<ledBrightnessMin || s.LEDBrightness>ledBrightnessMax {s.LEDBrightness=ledBrightnessDefault}
+    if s.LEDSpeed<1 || s.LEDSpeed>ledSpeedLevels {s.LEDSpeed=ledSpeedDefault}
 	return s
 }
 
 func loadSettings() settingsFile {
-	s := settingsFile{SortMode: sortVolume, FavoritesOnly: false, ChartRange: 0, RefreshIndex: defaultRefreshIndex}
+	s := settingsFile{SortMode: sortVolume, FavoritesOnly: false, ChartRange: 0, RefreshIndex: defaultRefreshIndex, LEDBrightness:ledBrightnessDefault,LEDSpeed:ledSpeedDefault}
 	b, err := os.ReadFile(filepath.Join(appDir(), "settings.json"))
 	if err != nil {
 		return s
 	}
 	if json.Unmarshal(b, &s) != nil {
-		return settingsFile{SortMode: sortVolume, RefreshIndex: defaultRefreshIndex}
+		return normalizeSettings(settingsFile{SortMode: sortVolume, RefreshIndex: defaultRefreshIndex})
 	}
 	return normalizeSettings(s)
 }
@@ -2908,7 +2912,7 @@ func main() {
     settingsAboutVisible:=false
     ledStatus:=""
     if settings.LEDMode!=ledSystem {
-        if err:=applyBrickLED(settings.LEDMode);err!=nil{ledStatus=err.Error()}
+        if err:=applyBrickLEDConfig(settings);err!=nil{ledStatus=err.Error()}
     }
 	all, lastUpdated := loadCache()
 	stale := len(all) > 0
