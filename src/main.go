@@ -2914,6 +2914,22 @@ func main() {
     if settings.LEDMode!=ledSystem {
         if err:=applyBrickLEDConfig(settings);err!=nil{ledStatus=err.Error()}
     }
+    // Apply first, save only after the device confirms success; unsupported effects keep
+    // the last working LED choice instead of claiming they are enabled.
+    changeLED:=func(mode,brightness,speed int){
+        candidate:=settings
+        candidate.LEDMode=mode
+        candidate.LEDBrightness=brightness
+        candidate.LEDSpeed=speed
+        if err:=applyBrickLEDConfig(candidate);err!=nil{
+            ledStatus=err.Error()
+            return
+        }
+        settings=candidate
+        ledStatus=ledStatusMessage(mode)
+        _=saveSettings(settings)
+    }
+
 	all, lastUpdated := loadCache()
 	stale := len(all) > 0
 	lastCacheSave := lastUpdated
@@ -3421,21 +3437,20 @@ func main() {
 
 				case actLeft:
                     if page==pageSettings {
-                        if !settingsAboutVisible{
-                            if settingsSelected==settingsLED{
-                                next:=settingsNextLED(settings.LEDMode,-1)
-                                if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
-                                    settings.LEDMode=next
-                                    ledStatus=ledStatusMessage(next)
-                                    _=saveSettings(settings)
-                                }
-                                dirty=true
-                            } else if settingsSelected==settingsTheme {
+                        if !settingsAboutVisible {
+                            switch settingsSelected {
+                            case settingsLED:
+                                changeLED(settingsNextLED(settings.LEDMode,-1),settings.LEDBrightness,settings.LEDSpeed)
+                            case settingsBrightness:
+                                changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,-1),settings.LEDSpeed)
+                            case settingsSpeed:
+                                changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,-1))
+                            case settingsTheme:
                                 settings.ThemeLight=false
                                 applyTheme(settings.ThemeLight)
                                 _=saveSettings(settings)
-                                dirty=true
                             }
+                            dirty=true
                         }
                     } else if detail {
 					} else if page==pageBusiness || page==pageHitech {
@@ -3453,21 +3468,20 @@ func main() {
 
 				case actRight:
                     if page==pageSettings {
-                        if !settingsAboutVisible{
-                            if settingsSelected==settingsLED{
-                                next:=settingsNextLED(settings.LEDMode,1)
-                                if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
-                                    settings.LEDMode=next
-                                    ledStatus=ledStatusMessage(next)
-                                    _=saveSettings(settings)
-                                }
-                                dirty=true
-                            } else if settingsSelected==settingsTheme {
+                        if !settingsAboutVisible {
+                            switch settingsSelected {
+                            case settingsLED:
+                                changeLED(settingsNextLED(settings.LEDMode,1),settings.LEDBrightness,settings.LEDSpeed)
+                            case settingsBrightness:
+                                changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
+                            case settingsSpeed:
+                                changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
+                            case settingsTheme:
                                 settings.ThemeLight=true
                                 applyTheme(settings.ThemeLight)
                                 _=saveSettings(settings)
-                                dirty=true
                             }
+                            dirty=true
                         }
                     } else if detail {
 					} else if page==pageBusiness || page==pageHitech {
@@ -3495,12 +3509,11 @@ func main() {
                                 applyTheme(settings.ThemeLight)
                                 _=saveSettings(settings)
                             case settingsLED:
-                                next:=settingsNextLED(settings.LEDMode,1)
-                                if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
-                                    settings.LEDMode=next
-                                    ledStatus=ledStatusMessage(next)
-                                    _=saveSettings(settings)
-                                }
+                                changeLED(settingsNextLED(settings.LEDMode,1),settings.LEDBrightness,settings.LEDSpeed)
+                            case settingsBrightness:
+                                changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
+                            case settingsSpeed:
+                                changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
                             case settingsAbout:
                                 settingsAboutVisible=true
                             }
