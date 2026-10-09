@@ -22,6 +22,11 @@ const (
  ledChase
  ledRed
  ledGreen
+ ledBattery
+ ledDualTone
+ ledColorCycle
+ ledAmbient
+ ledAction
  ledModeCount
 )
 const (
@@ -34,10 +39,12 @@ const (
 var ledModeNames=[]string{
  "HỆ THỐNG","TẮT","VÀNG TĨNH","XANH TĨNH","TÍM TĨNH",
  "NHỊP THỞ","NHẤP NHÁY","CẦU VỒNG","CHẠY ĐUỔI","ĐỎ TĨNH","LỤC TĨNH",
+ "BÁO PIN","CHUYỂN SẮC ĐÔI","VÒNG MÀU","ÁNH SÁNG DỊU","PHẢN HỒI NÚT",
 }
 var ledModeColors=[]string{
  "","000000","FFB900","00CCFF","B46AFF",
  "FFB900","FFB900","00CCFF","FFB900","FF3030","00DD70",
+ "00DD70","00CCFF","FFB900","00CCFF","FFB900",
 }
 var ledSpeedNames=[]string{"","RẤT NHANH","NHANH","VỪA","CHẬM","RẤT CHẬM"}
 var ledDurationMS=[]int{0,200,350,600,1000,1600}
@@ -83,7 +90,7 @@ func settingsNextSpeed(current,direction int)int{
  return value
 }
 func ledDynamic(mode int)bool {
- return mode==ledBreathing||mode==ledBlink||mode==ledRainbow||mode==ledChase
+ return ledFrameAnimated(mode)
 }
 func ledDriverPath(name string)string{return filepath.Join("/sys/class/led_anim",name)}
 var ledNodeName=regexp.MustCompile("^[a-z0-9_]+$")
@@ -167,7 +174,7 @@ func applyBrickLEDConfig(s settingsFile)error{
  if err:=writeLEDNode("effect_m",nativeID);err!=nil{return err}
  if err:=writeLEDOptional("effect_cycles_m","-1");err!=nil{return err}
  // Additional LED zones use native effect IDs only when those zone nodes exist.
- for _,zone:=range []string{"f1","f2","lr","rear"}{
+ for _,zone:=range []string{"f1","f2","lr","rear","l","r"}{
   if err:=writeLEDOptional("effect_rgb_hex_"+zone,colorHex);err!=nil{return err}
   if ledDynamic(s.LEDMode) {
    if err:=writeLEDOptional("effect_duration_"+zone,strconv.Itoa(ledDurationMS[s.LEDSpeed]));err!=nil{return err}
@@ -189,7 +196,9 @@ const (
  ledSubEffect=0
  ledSubBrightness=1
  ledSubSpeed=2
- ledSubItemCount=3
+ ledSubPrimary=3
+ ledSubSecondary=4
+ ledSubItemCount=5
 )
 func ledStatusMessage(mode int)string{
  if mode==ledSystem{return "HỆ THỐNG: KHỞI ĐỘNG LẠI ĐỂ KHÔI PHỤC"}
@@ -262,10 +271,10 @@ func drawLEDSubmenu(fb *framebuffer,s settingsFile,selected int,status string,pe
  margin:=max(18,fb.w/50)
  drawASCII(fb,margin,top+7,3,"HIỆU ỨNG LED",cYellow)
  drawASCII(fb,margin,top+45,1,"BRICK PRO / STOCK OS",cMuted)
- gap:=13
- contentTop:=top+79
+ gap:=8
+ contentTop:=top+67
  footer:=bottomTabsHeight(fb)
- rowH:=max(82,min(118,(fb.h-footer-contentTop-28-gap*2)/3))
+ rowH:=max(60,min(100,(fb.h-footer-contentTop-32-gap*(ledSubItemCount-1))/ledSubItemCount))
  for i:=0;i<ledSubItemCount;i++{
   y:=contentTop+i*(rowH+gap)
   bg:=cPanel;if i==selected{bg=cPanel2}
@@ -276,20 +285,22 @@ func drawLEDSubmenu(fb *framebuffer,s settingsFile,selected int,status string,pe
   if i==ledSubEffect&&pendingMode>=0{subtitle=ledModeNames[pendingMode]+" (A: XÁC NHẬN)"}
   if i==ledSubBrightness{label="ĐỘ SÁNG";subtitle=fmt.Sprintf("%d / %d",s.LEDBrightness,ledBrightnessMax)}
   if i==ledSubSpeed{label="TỐC ĐỘ";subtitle=ledSpeedNames[s.LEDSpeed]}
+  if i==ledSubPrimary{label="MÀU CHÍNH";subtitle=ledPaletteAt(s.LEDPrimary)}
+  if i==ledSubSecondary{label="MÀU PHỤ";subtitle=ledPaletteAt(s.LEDSecondary)}
   x:=margin+20
-  drawASCII(fb,x,y+11,3,label,cText)
-  drawASCII(fb,x+1,y+11,3,label,cText)
-  drawASCII(fb,x,y+54,2,subtitle,cMuted)
+  drawASCII(fb,x,y+6,2,label,cText)
+  drawASCII(fb,x+1,y+6,2,label,cText)
+  drawASCII(fb,x,y+34,2,subtitle,cMuted)
   if i==ledSubBrightness{
-   drawSettingScale(fb,fb.w-margin-180,y+55,150,s.LEDBrightness,ledBrightnessMax)
+   drawSettingScale(fb,fb.w-margin-180,y+35,150,s.LEDBrightness,ledBrightnessMax)
   }
   if i==ledSubSpeed{
-   drawSettingScale(fb,fb.w-margin-180,y+55,150,ledSpeedLevels+1-s.LEDSpeed,ledSpeedLevels)
+   drawSettingScale(fb,fb.w-margin-180,y+35,150,ledSpeedLevels+1-s.LEDSpeed,ledSpeedLevels)
   }
  }
- bottom:=fb.h-footer-42
+ bottom:=fb.h-footer-20
  if pendingMode>=0{
-  drawASCII(fb,margin,bottom-20,1,"A: XÁC NHẬN HIỆU ỨNG THỬ NGHIỆM",cYellow)
+  drawASCII(fb,margin,bottom-10,1,"A: XÁC NHẬN HIỆU ỨNG THỬ NGHIỆM",cYellow)
  }else if status!=""{
   drawASCII(fb,margin,bottom-20,1,cutNews(status,70),cYellow)
  }

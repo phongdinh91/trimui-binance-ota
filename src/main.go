@@ -27,7 +27,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.37"
+	appVersion          = "v0.38"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
@@ -1118,6 +1118,8 @@ type settingsFile struct {
     LEDMode       int  `json:"ledMode"`
     LEDBrightness int `json:"ledBrightness"`
     LEDSpeed int `json:"ledSpeed"`
+    LEDPrimary int `json:"ledPrimary"`
+    LEDSecondary int `json:"ledSecondary"`
 }
 
 func normalizeSettings(s settingsFile) settingsFile {
@@ -1133,11 +1135,13 @@ func normalizeSettings(s settingsFile) settingsFile {
     if s.LEDMode<0 || s.LEDMode>=ledModeCount{s.LEDMode=ledSystem}
     if s.LEDBrightness<ledBrightnessMin || s.LEDBrightness>ledBrightnessMax {s.LEDBrightness=ledBrightnessDefault}
     if s.LEDSpeed<1 || s.LEDSpeed>ledSpeedLevels {s.LEDSpeed=ledSpeedDefault}
+    if s.LEDPrimary<0 || s.LEDPrimary>=len(ledPalette) {s.LEDPrimary=0}
+    if s.LEDSecondary<0 || s.LEDSecondary>=len(ledPalette) {s.LEDSecondary=1}
 	return s
 }
 
 func loadSettings() settingsFile {
-	s := settingsFile{SortMode: sortVolume, FavoritesOnly: false, ChartRange: 0, RefreshIndex: defaultRefreshIndex, LEDBrightness:ledBrightnessDefault,LEDSpeed:ledSpeedDefault}
+	s := settingsFile{SortMode: sortVolume, FavoritesOnly: false, ChartRange: 0, RefreshIndex: defaultRefreshIndex, LEDBrightness:ledBrightnessDefault,LEDSpeed:ledSpeedDefault,LEDPrimary:0,LEDSecondary:1}
 	b, err := os.ReadFile(filepath.Join(appDir(), "settings.json"))
 	if err != nil {
 		return s
@@ -2930,13 +2934,9 @@ func main() {
         if err==nil{ledWorker=nil}
         return err
     }
-    changeLED:=func(mode,brightness,speed int){
-        candidate:=settings
-        candidate.LEDMode=mode
-        candidate.LEDBrightness=brightness
-        candidate.LEDSpeed=speed
+    applyLEDSettings:=func(candidate settingsFile){
         if err:=stopWorker();err!=nil {ledStatus=err.Error();return}
-        if ledFrameAnimated(mode){
+        if ledFrameAnimated(candidate.LEDMode){
             worker,err:=startLEDAnimation(candidate)
             if err!=nil{ledStatus=err.Error();return}
             ledWorker=worker
@@ -2945,8 +2945,20 @@ func main() {
             return
         }
         settings=candidate
-        ledStatus=ledStatusMessage(mode)
+        ledStatus=ledStatusMessage(candidate.LEDMode)
         _=saveSettings(settings)
+    }
+    changeLED:=func(mode,brightness,speed int){
+        candidate:=settings
+        candidate.LEDMode=mode
+        candidate.LEDBrightness=brightness
+        candidate.LEDSpeed=speed
+        applyLEDSettings(candidate)
+    }
+    changeLEDColor:=func(primary bool,direction int){
+        candidate:=settings
+        if primary {candidate.LEDPrimary=ledNextColor(settings.LEDPrimary,direction)} else {candidate.LEDSecondary=ledNextColor(settings.LEDSecondary,direction)}
+        applyLEDSettings(candidate)
     }
     moveLEDEffect:=func(direction int){
         from:=settings.LEDMode
@@ -3306,6 +3318,7 @@ func main() {
 				nextFetch = time.Now().Add(refreshEvery)
 			}
 			for _, ac := range ir.poll() {
+                if ledWorker!=nil && settings.LEDMode==ledAction {ledWorker.pulse()}
 				if otaStatusVisible {
 					if otaUpdating.Load() {
 						continue
@@ -3478,6 +3491,8 @@ func main() {
                             case ledSubEffect: moveLEDEffect(-1)
                             case ledSubBrightness: changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,-1),settings.LEDSpeed)
                             case ledSubSpeed: changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,-1))
+                             case ledSubPrimary: changeLEDColor(true,-1)
+                             case ledSubSecondary: changeLEDColor(false,-1)
                             }
                             dirty=true
                         }else if !settingsAboutVisible&&settingsSelected==settingsTheme{
@@ -3507,6 +3522,8 @@ func main() {
                             case ledSubEffect: moveLEDEffect(1)
                             case ledSubBrightness: changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
                             case ledSubSpeed: changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
+                             case ledSubPrimary: changeLEDColor(true,1)
+                             case ledSubSecondary: changeLEDColor(false,1)
                             }
                             dirty=true
                         }else if !settingsAboutVisible&&settingsSelected==settingsTheme{
@@ -3545,6 +3562,10 @@ func main() {
                                 changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
                             case ledSubSpeed:
                                 changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
+                            case ledSubPrimary:
+                                changeLEDColor(true,1)
+                            case ledSubSecondary:
+                                changeLEDColor(false,1)
                             }
                             dirty=true
                         }else if !settingsAboutVisible {

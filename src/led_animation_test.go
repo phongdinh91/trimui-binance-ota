@@ -8,7 +8,7 @@ import (
 
 func TestFullDeviceRainbowAndChaseFrames(t *testing.T){
  if !ledFrameAnimated(ledChase)||!ledFrameAnimated(ledRainbow){t.Fatal("effects unavailable")}
- if ledFrameAnimated(ledBlink)||ledFrameAnimated(ledGold){t.Fatal("native modes must not use frame_hex")}
+ if !ledFrameAnimated(ledBlink)||ledFrameAnimated(ledGold){t.Fatal("dynamic vs static mode classification")}
  for _,count:=range []int{ledOriginalBrickPixels,ledBrickProPixels}{
   for _,mode:=range []int{ledRainbow,ledChase}{
    first:=ledAnimationFrameFor(mode,0,count)
@@ -44,6 +44,6 @@ func TestLEDSpeedDelay(t *testing.T){
  if ledAnimationDelay(5)>time.Second{t.Fatal("slow mode stalled")}
 }
 func TestNativeAndSoftwareEffectsAreSeparate(t *testing.T){
- if settingsItemCount!=4||ledSubItemCount!=3{t.Fatal("LED must stay a Settings submenu")}
+ if settingsItemCount!=4||ledSubItemCount!=5{t.Fatal("LED must stay a Settings submenu")}
  if !ledDynamic(ledRainbow)||!ledDynamic(ledChase){t.Fatal("animation modes must be dynamic")}
 }

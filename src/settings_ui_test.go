@@ -11,8 +11,8 @@ func TestSettingsDefaultAndNormalization(t *testing.T){
  if !s.ThemeLight {t.Fatal("light theme must be preserved")}
 }
 func TestSettingsLEDNavigation(t *testing.T){
- if settingsNextLED(ledSystem,-1)!=ledGreen {t.Fatal("LED backwards wrap")}
- if settingsNextLED(ledGreen,1)!=ledSystem {t.Fatal("LED forward wrap")}
+ if settingsNextLED(ledSystem,-1)!=ledAction {t.Fatal("LED backwards wrap")}
+ if settingsNextLED(ledGreen,1)!=ledBattery {t.Fatal("LED forward wrap")}
  if settingsNextLED(ledOff,1)!=ledGold {t.Fatal("LED next")}
 }
 func TestSettingsThemeColors(t *testing.T){
@@ -63,7 +63,7 @@ func TestLEDSettingsNormalizationDefaults(t *testing.T){
 }
 func TestLEDSubmenuRows(t *testing.T){
  s:=normalizeSettings(settingsFile{})
- if settingsItemCount!=4 || ledSubItemCount!=3 || ledSubEffect==ledSubBrightness || ledSubBrightness==ledSubSpeed {
+ if settingsItemCount!=4 || ledSubItemCount!=5 || ledSubEffect==ledSubBrightness || ledSubBrightness==ledSubSpeed {
   t.Fatal("LED settings must be nested under one main Settings row")
  }
  if settingsValue(s,settingsLED)=="" || settingsValue(s,settingsAbout)==""{t.Fatal("Missing Settings labels")}
