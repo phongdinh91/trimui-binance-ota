@@ -1764,9 +1764,9 @@ func drawBottomTabs(fb *framebuffer, active int, hint string) {
   x:=center-asciiWidth(2,t.label)/2
   clr:=cMuted
   activeTab:=active==t.page || (active==pageSearch&&t.page==pageFavorites)
-  if activeTab {clr=cYellow;fb.rect(fb.w*i/4+7,tabY+47,fb.w/4-14,4,cYellow)}
+  if activeTab {clr=cYellow;fb.rect(fb.w*i/4+7,tabY+26,fb.w/4-14,4,cYellow)}
   drawASCII(fb,x,tabY,2,t.label,clr)
-  if i==1 || i==2 {source:="24h.com.vn";drawASCII(fb,center-asciiWidth(1,source)/2,tabY+26,1,source,cMuted)}
+
  }
  // Version is displayed once in the top bar below the clock.
 }
