@@ -13,7 +13,7 @@ import (
 )
 
 type newsCategory struct { Name, URL string; Gold bool }
-type newsArticle struct { Title, URL, Excerpt string }
+type newsArticle struct { Title, URL, Excerpt string; Blocks []newsBlock }
 type news24Result struct { Key, Kind string; Items []newsArticle; Article newsArticle; Err error; At time.Time }
 
 // Verified 24h.com.vn category links. The gold tile uses the existing quote screen.
@@ -57,7 +57,7 @@ func newsCategoryFor(page,index int)(newsCategory,bool){
 func newsSafeURL(raw string) bool {
  u,err:=url.Parse(raw)
  if err!=nil||u.Scheme!="https"||u.User!=nil||u.Port()!=""{return false}
- return u.Hostname()=="www.24h.com.vn"||u.Hostname()=="24h.com.vn"
+ return u.Hostname()=="www.24h.com.vn"||u.Hostname()=="24h.com.vn"||u.Hostname()=="amp.24h.com.vn"
 }
 var newsAnchors=regexp.MustCompile("(?is)<a\\b[^>]*?href\\s*=\\s*(?:\"([^\"]+)\"|'([^']+)')[^>]*>(.*?)</a\\s*>")
 var newsHeadlineURL=regexp.MustCompile("(?i)-c[0-9]+(?:e[0-9]+)?a[0-9]+\\.html(?:\\?.*)?$")
@@ -129,8 +129,21 @@ func fetch24hNews(client *http.Client,address,kind string)news24Result{
  page,err:=get24hPage(client,address)
  if err!=nil {r.Err=err;return r}
  if kind=="article"{
-  r.Article=parse24hArticleText(page)
-  if r.Article.Title=="" && r.Article.Excerpt=="" {r.Err=errors.New("không đọc được bài viết")}
+  r.Article=parse24hRichArticle(page,address)
+  // AMP markup sometimes exposes the body when desktop HTML hides it.
+  if len(r.Article.Blocks)<2 {
+   if base,e:=url.Parse(address);e==nil&&base.Hostname()!="amp.24h.com.vn"{
+    base.Host="amp.24h.com.vn"
+    if ampPage,e:=get24hPage(client,base.String());e==nil {
+     alternative:=parse24hRichArticle(ampPage,base.String())
+     if len(alternative.Blocks)>len(r.Article.Blocks){
+      if alternative.Title==""{alternative.Title=r.Article.Title}
+      r.Article=alternative
+     }
+    }
+   }
+  }
+  if len(r.Article.Blocks)==0 {r.Err=errors.New("không đọc được nội dung từ 24h")}
   return r
  }
  r.Items=parse24hArticles(page)
@@ -141,16 +154,13 @@ func draw24hTileGrid(fb *framebuffer,page,selected int){
  cats:=newsCategories(page)
  fb.fill(cBg)
  margin:=max(18,fb.w/50)
- headerH:=max(112,fb.h*15/100)
- fb.rect(0,0,fb.w,headerH,cPanel)
- heading:="KINH DOANH";if page==pageHitech{heading="HI-TECH"}
- drawASCII(fb,margin,10,3,heading,cYellow)
- drawASCII(fb,margin,58,2,"DANH MỤC 24H.COM.VN",cText)
- drawASCII(fb,margin,headerH-22,1,fmt.Sprintf("%d MỤC CON",len(cats)),cMuted)
+ headerH:=drawAppTopBar(fb,page)
+ drawASCII(fb,margin,headerH+7,2,"DANH MỤC 24H.COM.VN",cText)
+ drawASCII(fb,margin,headerH+34,1,fmt.Sprintf("%d MỤC CON",len(cats)),cMuted)
  footer:=bottomTabsHeight(fb)
  gap:=max(10,fb.w/90)
  rows:=4
- available:=fb.h-headerH-footer-26
+ available:=fb.h-headerH-footer-70
  cellH:=(available-gap*(rows-1))/rows
  cellW:=(fb.w-2*margin-gap)/2
  if cellH<38 {cellH=38}
@@ -163,14 +173,17 @@ func draw24hTileGrid(fb *framebuffer,page,selected int){
  for i:=startRow*2;i<len(cats)&&i<(startRow+4)*2;i++ {
   local:=i-startRow*2
   x:=margin+(local%2)*(cellW+gap)
-  y:=headerH+12+(local/2)*(cellH+gap)
+  y:=headerH+59+(local/2)*(cellH+gap)
   selectedTile:=i==selected
   bg:=cPanel;if selectedTile{bg=cPanel2}
   fb.rect(x,y,cellW,cellH,bg)
   if selectedTile{fb.rect(x,y,5,cellH,cYellow)}
-  scale:=2
-  if asciiWidth(scale,cats[i].Name)>cellW-24{scale=1}
-  drawASCII(fb,x+14,y+max(9,cellH/2-8),scale,cats[i].Name,cText)
+  scale:=3
+  if asciiWidth(scale,cats[i].Name)>cellW-28{scale=2}
+  if asciiWidth(scale,cats[i].Name)>cellW-28{scale=1}
+  xx:=x+13; yy:=y+max(8,(cellH-7*scale)/2)
+  drawASCII(fb,xx,yy,scale,cats[i].Name,cText)
+  drawASCII(fb,xx+1,yy,scale,cats[i].Name,cText)
   small:=fmt.Sprintf("%02d/12",i+1)
   drawASCII(fb,x+cellW-asciiWidth(1,small)-10,y+8,1,small,cMuted)
  }
@@ -179,15 +192,14 @@ func draw24hTileGrid(fb *framebuffer,page,selected int){
 func draw24hNewsList(fb *framebuffer,page int,cat newsCategory,items []newsArticle,selected int,loading bool,errText string,updated time.Time){
  fb.fill(cBg)
  margin:=max(18,fb.w/50)
- headerH:=max(122,fb.h*17/100)
+ headerH:=drawAppTopBar(fb,page)
  footer:=bottomTabsHeight(fb)
- fb.rect(0,0,fb.w,headerH,cPanel)
- drawASCII(fb,margin,10,3,cat.Name,cYellow)
- drawASCII(fb,margin,55,1,"NGUỒN: 24H.COM.VN",cMuted)
- if !updated.IsZero(){drawASCII(fb,margin,77,1,"TẢI LÚC "+updated.Format("15:04 02/01"),cMuted)}
- if loading{drawASCII(fb,fb.w/2,77,1,"ĐANG TẢI...",cYellow)}
- if errText!="" {drawASCII(fb,margin,headerH+14,1,"NGUỒN LỖI: "+cutNews(errText,50),cRed)}
- top:=headerH+39
+ drawASCII(fb,margin,headerH+8,3,cat.Name,cYellow)
+ drawASCII(fb,margin,headerH+40,1,"NGUỒN: 24H.COM.VN",cMuted)
+ if !updated.IsZero(){drawASCII(fb,margin,headerH+57,1,"TẢI LÚC "+updated.Format("15:04 02/01"),cMuted)}
+ if loading{drawASCII(fb,fb.w/2,headerH+57,1,"ĐANG TẢI...",cYellow)}
+ if errText!="" {drawASCII(fb,margin,headerH+78,1,"NGUỒN LỖI: "+cutNews(errText,50),cRed)}
+ top:=headerH+96
  bottom:=fb.h-footer-12
  rowH:=max(50,min(75,(bottom-top)/6))
  visible:=max(1,(bottom-top)/rowH)
