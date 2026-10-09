@@ -3532,7 +3532,22 @@ func main() {
 
 				case actA:
                     if page==pageSettings {
-                        if !settingsAboutVisible {
+                        if ledSubmenuVisible {
+                            switch ledSelected {
+                            case ledSubEffect:
+                                if ledPendingMode>=0 {
+                                    changeLED(ledPendingMode,settings.LEDBrightness,settings.LEDSpeed)
+                                    ledPendingMode=-1
+                                }else{
+                                    changeLED(settings.LEDMode,settings.LEDBrightness,settings.LEDSpeed)
+                                }
+                            case ledSubBrightness:
+                                changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
+                            case ledSubSpeed:
+                                changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
+                            }
+                            dirty=true
+                        }else if !settingsAboutVisible {
                             switch settingsSelected{
                             case settingsOTA:
                                 if !otaChecking.Load() {doOTACheck()}
@@ -3541,11 +3556,9 @@ func main() {
                                 applyTheme(settings.ThemeLight)
                                 _=saveSettings(settings)
                             case settingsLED:
-                                changeLED(settingsNextLED(settings.LEDMode,1),settings.LEDBrightness,settings.LEDSpeed)
-                            case settingsBrightness:
-                                changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
-                            case settingsSpeed:
-                                changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
+                                ledSubmenuVisible=true
+                                ledSelected=ledSubEffect
+                                ledPendingMode=-1
                             case settingsAbout:
                                 settingsAboutVisible=true
                             }
@@ -3606,7 +3619,11 @@ func main() {
 
 				case actB:
                     if page==pageSettings{
-                        if settingsAboutVisible{settingsAboutVisible=false;dirty=true}
+                        if ledSubmenuVisible {
+                            ledSubmenuVisible=false
+                            ledPendingMode=-1
+                            dirty=true
+                        }else if settingsAboutVisible{settingsAboutVisible=false;dirty=true}
                     } else if detail {
 						detail=false
 						page=pageFavorites
@@ -3666,6 +3683,8 @@ func main() {
 					}
 					if ac==actR1 {page=cycleMainPage(page,1)} else {page=cycleMainPage(page,-1)}
                     settingsAboutVisible=false
+                    ledSubmenuVisible=false
+                    ledPendingMode=-1
 					newsView=0;newsCategorySel=0;newsArticleSel=0
 					dirty=true
 
@@ -3735,7 +3754,9 @@ func main() {
 						dirty = true
 					}
 				 } else if page==pageSettings {
-                    if settingsAboutVisible{
+                    if ledSubmenuVisible{
+                        drawLEDSubmenu(fb,settings,ledSelected,ledStatus,ledPendingMode)
+                    } else if settingsAboutVisible{
                         drawAboutApp(fb)
                     } else {
                         drawAppSettings(fb,settings,settingsSelected,otaChecking.Load(),ledStatus)
