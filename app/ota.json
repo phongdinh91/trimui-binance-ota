@@ -1,4 +1,4 @@
 {
   "manifest_url": "https://raw.githubusercontent.com/phongdinh91/trimui-binance-ota/main/manifest.json",
-  "check_on_start": true
+  "check_on_start": false
 }
