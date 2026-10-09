@@ -2917,6 +2917,22 @@ func main() {
  newsURL:=""
  newsKind:=""
  newsCh:=make(chan news24Result,8)
+ newsScroll:=0
+ newsPictures:=map[string]*asset{}
+ newsPictureErrors:=map[string]string{}
+ newsPicturePending:=map[string]bool{}
+ newsImageCh:=make(chan newsPictureResult,8)
+ newsVideoDoneCh:=make(chan error,1)
+ newsVideoNote:=""
+ newsVideoRunning:=false
+ startNewsImage:=func(address string) {
+  if address==""||newsPicturePending[address]||newsPictures[address]!=nil||newsPictureErrors[address]!="" {return}
+  newsPicturePending[address]=true
+  go func(){
+   picture,e:=fetchNewsPicture(client,address)
+   newsImageCh<-newsPictureResult{URL:address,Picture:picture,Err:e}
+  }()
+ }
  doNewsFetch:=func(address,kind string) {
   if newsLoading && address==newsURL && kind==newsKind{return}
   newsURL=address;newsKind=kind;newsLoading=true;newsErr=""
@@ -3127,6 +3143,18 @@ func main() {
 			}
 			dirty = true
 
+		case picture := <-newsImageCh:
+            delete(newsPicturePending,picture.URL)
+            if picture.Err!=nil{newsPictureErrors[picture.URL]=picture.Err.Error()}else{
+             newsPictures[picture.URL]=picture.Picture
+            }
+            dirty=true
+
+        case vErr := <-newsVideoDoneCh:
+            newsVideoRunning=false
+            if vErr!=nil{newsVideoNote=vErr.Error()}else{newsVideoNote="ĐÃ ĐÓNG TRÌNH PHÁT VIDEO"}
+            dirty=true
+
 		case nr := <-newsCh:
             if nr.Key==newsURL && nr.Kind==newsKind {
                 newsLoading=false
@@ -3137,8 +3165,12 @@ func main() {
                        newsItems=nr.Items
                        newsArticleSel=0
                     } else {
-                       if nr.Article.Title!="" {newsArticleActive.Title=nr.Article.Title}
-                       newsArticleActive.Excerpt=nr.Article.Excerpt
+                       link:=newsArticleActive.URL
+                       newsArticleActive=nr.Article
+                       if newsArticleActive.URL==""{newsArticleActive.URL=link}
+                       newsScroll=0
+                       newsVideoNote=""
+                       startNewsImage(articleVisibleImage(newsArticleActive,newsScroll))
                     }
                 }
                 dirty=true
@@ -3316,6 +3348,7 @@ func main() {
                         switch newsView {
                         case 0: if newsCategorySel>=2 {newsCategorySel-=2;dirty=true}
                         case 1: if newsArticleSel>0 {newsArticleSel--;dirty=true}
+                        case 2: if newsScroll>0 {newsScroll--;startNewsImage(articleVisibleImage(newsArticleActive,newsScroll));dirty=true}
                         case 3: if goldSel>0 {goldSel--;dirty=true}
                         }
 					} else if page == pageFavorites {
@@ -3338,6 +3371,7 @@ func main() {
                         switch newsView {
                         case 0: if newsCategorySel+2<len(newsCategories(page)){newsCategorySel+=2;dirty=true}
                         case 1: if newsArticleSel+1<len(newsItems){newsArticleSel++;dirty=true}
+                        case 2: if newsScroll+1<len(newsArticleActive.Blocks){newsScroll++;startNewsImage(articleVisibleImage(newsArticleActive,newsScroll));dirty=true}
                         case 3: if goldSel+1<len(gold.Quotes){goldSel++;dirty=true}
                         }
 					} else if page==pageFavorites {
@@ -3405,10 +3439,23 @@ func main() {
 								newsArticleActive=newsItems[newsArticleSel]
 								newsArticleActive.Excerpt=""
 								newsView=2
+                                newsScroll=0
+                                newsVideoNote=""
 								doNewsFetch(newsArticleActive.URL,"article")
 								dirty=true
 							}
-						}
+	                        case 2:
+                           if newsVideoRunning{break}
+                           video:=articleVideoAt(newsArticleActive,newsScroll)
+                           if video==""{
+                            newsVideoNote="CUỘN ĐẾN ĐOẠN VIDEO RỒI BẤM A"
+                           }else{
+                            newsVideoRunning=true
+                            newsVideoNote="ĐANG MỞ VIDEO..."
+                            go func(url string){newsVideoDoneCh<-play24hVideo(url)}(video)
+                           }
+                           dirty=true
+					}
 					} else if page==pageFavorites {
 						fav:=favoriteTickers(all,favorites)
 						if favoriteSel>=0&&favoriteSel<len(fav){openDetail(fav[favoriteSel].Symbol);dirty=true}
@@ -3559,7 +3606,7 @@ func main() {
                     case 1:
                         if ok {draw24hNewsList(fb,page,cat,newsItems,newsArticleSel,newsLoading,newsErr,newsLastFetch)}
                     case 2:
-                        draw24hArticlePreview(fb,page,newsArticleActive,newsLoading,newsErr)
+                        draw24hRichArticle(fb,page,newsArticleActive,newsLoading,newsErr,newsScroll,newsPictures,newsPictureErrors,newsVideoNote)
                     case 3:
                         if page==pageBusiness {renderBusiness(fb,gold,goldSel,goldFetching.Load(),goldErr)} else {draw24hTileGrid(fb,page,newsCategorySel)}
                     }
