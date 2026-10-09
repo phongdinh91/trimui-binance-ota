@@ -1,5 +1,17 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.35 — 24h trong thanh trên, LED mở rộng và điều chỉnh sáng/nháy
+
+- Trên **KINH DOANH** và **HI-TECH**, nguồn `24h.com.vn` được hiển thị **bên trong thanh trên cùng** bên dưới tên tab; thanh điều hướng bên dưới chỉ còn tên bốn tab.
+- **CÀI ĐẶT**: tên các mục tăng lên cỡ chữ 3x, in đậm, có ô chọn rõ ràng. Gồm 6 hàng: Cập nhật OTA thủ công, Chủ đề sáng/tối, Hiệu ứng LED, Độ sáng LED, Tốc độ nháy, Giới thiệu.
+- **Hiệu ứng LED** thêm: Nhấp nháy, Cầu vồng, Chạy đuổi, Đỏ tĩnh, Lục tĩnh; vẫn giữ Hệ thống, Tắt, Vàng, Xanh, Tím và Nhịp thở. Chọn bằng **A** hoặc **D-pad trái/phải** ở hàng Hiệu ứng LED.
+- **Độ sáng** dùng thang giá trị sysfs `max_scale` từ **10 đến 60**, bước 10. **Tốc độ** có 5 mức (rất nhanh đến rất chậm), tương ứng driver native `effect_duration_*` từ **200 đến 1600 ms**. Chọn hàng rồi bấm trái/phải hoặc A để tăng.
+- **Không dùng vòng lặp ghi vào `frame_hex`** do firmware Brick có nguy cơ treo tiến trình khi ghi liên tục. Các hiệu ứng động chỉ được áp dụng nếu `effect_names` công bố tên hiệu ứng và `effect_duration_m` tồn tại; nếu không, app báo lỗi và không lưu lựa chọn không hỗ trợ.
+- Các mức sáng, tốc độ và chế độ LED được lưu vào `settings.json` và có giá trị mặc định an toàn khi nâng cấp từ bản cũ. **Cài đặt → Cập nhật OTA** vẫn là thao tác thủ công, không kiểm tra tự động khi mở app.
+
+**Lưu ý thiết bị:** Tính năng màu, độ sáng và tốc độ LED cần được xác minh trên firmware của Brick Pro thật. Các tùy chọn chỉ sử dụng giao diện native `/sys/class/led_anim/` có trên firmware tương thích; hiệu ứng hiển thị có thể khác nhau theo phiên bản OS.
+
+
 ## v0.34 — CÀI ĐẶT và OTA thủ công
 
 **Bốn tab chính:** BINANCE, KINH DOANH, HI-TECH và **CÀI ĐẶT**, chuyển qua lại bằng L1/R1.
