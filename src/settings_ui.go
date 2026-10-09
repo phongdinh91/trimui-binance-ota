@@ -180,10 +180,14 @@ const (
  settingsOTA=0
  settingsTheme=1
  settingsLED=2
- settingsBrightness=3
- settingsSpeed=4
- settingsAbout=5
- settingsItemCount=6
+ settingsAbout=3
+ settingsItemCount=4
+)
+const (
+ ledSubEffect=0
+ ledSubBrightness=1
+ ledSubSpeed=2
+ ledSubItemCount=3
 )
 func ledStatusMessage(mode int)string{
  if mode==ledSystem{return "HỆ THỐNG: KHỞI ĐỘNG LẠI ĐỂ KHÔI PHỤC"}
@@ -194,8 +198,6 @@ func settingsValue(s settingsFile,idx int)string{
  case settingsOTA:return "BẤM A ĐỂ KIỂM TRA"
  case settingsTheme:if s.ThemeLight{return "SÁNG"};return "TỐI"
  case settingsLED:return ledModeNames[s.LEDMode]
- case settingsBrightness:return fmt.Sprintf("%d / %d",s.LEDBrightness,ledBrightnessMax)
- case settingsSpeed:return ledSpeedNames[s.LEDSpeed]
  case settingsAbout:return "THÔNG TIN ỨNG DỤNG"
  }
  return ""
@@ -224,42 +226,71 @@ func drawAppSettings(fb *framebuffer,s settingsFile,selection int,checkingOTA bo
  fb.fill(cBg)
  top:=drawAppTopBar(fb,pageSettings)
  margin:=max(18,fb.w/50)
- yTop:=top+28
+ yTop:=top+38
  footer:=bottomTabsHeight(fb)
- gap:=8
+ gap:=16
  usable:=fb.h-footer-yTop-12
- rowH:=max(60,min(94,(usable-gap*(settingsItemCount-1))/settingsItemCount))
- labels:=[]string{
-  "CẬP NHẬT OTA","CHỦ ĐỀ SÁNG / TỐI","HIỆU ỨNG LED",
-  "ĐỘ SÁNG LED","TỐC ĐỘ NHÁY","GIỚI THIỆU",
- }
+ rowH:=max(88,min(116,(usable-gap*(settingsItemCount-1))/settingsItemCount))
+ labels:=[]string{"CẬP NHẬT OTA","CHỦ ĐỀ SÁNG / TỐI","ĐIỀU KHIỂN LED","GIỚI THIỆU"}
  for i,label:=range labels{
   y:=yTop+i*(rowH+gap)
-  bg:=cPanel
-  if selection==i{bg=cPanel2}
+  bg:=cPanel;if selection==i{bg=cPanel2}
   fb.rect(margin,y,fb.w-margin*2,rowH,bg)
   if selection==i{fb.rect(margin,y,6,rowH,cYellow)}
-  // 3x bold (two pixel strokes) replaces former 2x labels.
-  xx:=margin+20
-  drawASCII(fb,xx,y+7,3,label,cText)
-  drawASCII(fb,xx+1,y+7,3,label,cText)
+  x:=margin+20
+  drawASCII(fb,x,y+11,3,label,cText)
+  drawASCII(fb,x+1,y+11,3,label,cText)
   caption:=settingsValue(s,i)
   if i==settingsOTA&&checkingOTA{caption="ĐANG KIỂM TRA GITHUB..."}
-  if i==settingsLED&&ledStatus!=""{caption=cutNews(ledStatus,50)}
-  if i==settingsSpeed && !ledDynamic(s.LEDMode) {caption+=" (CHO HIỆU ỨNG ĐỘNG)"}
-  drawASCII(fb,xx,y+40,2,cutNews(caption,50),cMuted)
-  switch i {
-  case settingsTheme:
-   drawSlideToggle(fb,fb.w-margin-125,y+16,s.ThemeLight)
-  case settingsBrightness:
-   drawSettingScale(fb,fb.w-margin-185,y+25,140,s.LEDBrightness,ledBrightnessMax)
-  case settingsSpeed:
-   drawSettingScale(fb,fb.w-margin-185,y+25,140,ledSpeedLevels+1-s.LEDSpeed,ledSpeedLevels)
-  default:
-   drawASCII(fb,fb.w-margin-28,y+22,2,">",cYellow)
+  if i==settingsLED&&ledStatus!=""{caption=cutNews(settingsValue(s,i)+" / "+ledStatus,56)}
+  drawASCII(fb,x,y+55,2,cutNews(caption,60),cMuted)
+  if i==settingsTheme{
+   drawSlideToggle(fb,fb.w-margin-120,y+22,s.ThemeLight)
+  }else{
+   drawASCII(fb,fb.w-margin-34,y+31,3,">",cYellow)
   }
  }
- drawBottomTabs(fb,pageSettings,"A: CHỌN   TRÁI/PHẢI: ĐIỀU CHỈNH   LÊN/XUỐNG: DI CHUYỂN")
+ drawBottomTabs(fb,pageSettings,"A: MỞ   LÊN/XUỐNG: CHỌN   L1/R1: ĐỔI TAB")
+}
+
+// Dedicated LED submenu: all effect, brightness and speed options live here.
+func drawLEDSubmenu(fb *framebuffer,s settingsFile,selected int,status string,pendingMode int){
+ fb.fill(cBg)
+ top:=drawAppTopBar(fb,pageSettings)
+ margin:=max(18,fb.w/50)
+ drawASCII(fb,margin,top+7,3,"HIỆU ỨNG LED",cYellow)
+ drawASCII(fb,margin,top+45,1,"BRICK PRO / STOCK OS",cMuted)
+ gap:=13
+ contentTop:=top+79
+ footer:=bottomTabsHeight(fb)
+ rowH:=max(82,min(118,(fb.h-footer-contentTop-28-gap*2)/3))
+ for i:=0;i<ledSubItemCount;i++{
+  y:=contentTop+i*(rowH+gap)
+  bg:=cPanel;if i==selected{bg=cPanel2}
+  fb.rect(margin,y,fb.w-2*margin,rowH,bg)
+  if i==selected{fb.rect(margin,y,6,rowH,cYellow)}
+  label:="CHỌN HIỆU ỨNG"
+  subtitle:=ledModeNames[s.LEDMode]
+  if i==ledSubBrightness{label="ĐỘ SÁNG";subtitle=fmt.Sprintf("%d / %d",s.LEDBrightness,ledBrightnessMax)}
+  if i==ledSubSpeed{label="TỐC ĐỘ NHÁY";subtitle=ledSpeedNames[s.LEDSpeed]}
+  x:=margin+20
+  drawASCII(fb,x,y+11,3,label,cText)
+  drawASCII(fb,x+1,y+11,3,label,cText)
+  drawASCII(fb,x,y+54,2,subtitle,cMuted)
+  if i==ledSubBrightness{
+   drawSettingScale(fb,fb.w-margin-180,y+55,150,s.LEDBrightness,ledBrightnessMax)
+  }
+  if i==ledSubSpeed{
+   drawSettingScale(fb,fb.w-margin-180,y+55,150,ledSpeedLevels+1-s.LEDSpeed,ledSpeedLevels)
+  }
+ }
+ bottom:=fb.h-footer-42
+ if pendingMode>=0{
+  drawASCII(fb,margin,bottom-20,1,"A: XÁC NHẬN HIỆU ỨNG THỬ NGHIỆM",cYellow)
+ }else if status!=""{
+  drawASCII(fb,margin,bottom-20,1,cutNews(status,70),cYellow)
+ }
+ drawBottomTabs(fb,pageSettings,"TRÁI/PHẢI: ĐỔI   A: ÁP DỤNG   B: QUAY LẠI")
 }
 
 func drawAboutApp(fb *framebuffer){
