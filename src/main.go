@@ -3409,66 +3409,83 @@ func main() {
 						dirty=true
 					}
 
+
 				case actA:
 					if detail {
-						// Chỉ xem dữ liệu, không đặt lệnh.
-					} else if page == pageBusiness {
-      // Chỉ xem bảng giá, không giao dịch.
-     } else if page == pageFavorites {
-						fav := favoriteTickers(all, favorites)
-						if len(fav) > 0 && favoriteSel < len(fav) {
-							openDetail(fav[favoriteSel].Symbol)
-							dirty = true
+						// Charts are read-only.
+					} else if page==pageBusiness || page==pageHitech {
+						switch newsView {
+						case 0:
+							cat,ok:=newsCategoryFor(page,newsCategorySel)
+							if ok {
+								if cat.Gold {
+									newsView=3
+									if gold.FetchedAt.IsZero()||time.Since(gold.FetchedAt)>goldRefreshInterval {doGoldFetch()}
+								} else {
+									newsView=1;newsItems=nil;newsArticleSel=0;newsLastFetch=time.Time{}
+									doNewsFetch(cat.URL,"list")
+								}
+								dirty=true
+							}
+						case 1:
+							if newsArticleSel>=0&&newsArticleSel<len(newsItems) {
+								newsArticleActive=newsItems[newsArticleSel]
+								newsArticleActive.Excerpt=""
+								newsView=2
+								doNewsFetch(newsArticleActive.URL,"article")
+								dirty=true
+							}
 						}
-					} else if page == pageSearch && focusSuggestions && len(suggestions) > 0 {
-						// A opens the selected pair in-place on BINANCE, without the keyboard.
-						openDetail(suggestions[suggSel].Symbol)
-						detailFrom = pageFavorites
-						page = pageFavorites
-						query = ""
-						focusSuggestions = false
-						refreshSuggestions()
-						dirty = true
-					} else {
-						key := searchKeyboard[kbRow][kbCol]
-						query = applySearchKey(query, key)
-						suggSel = 0
-						refreshSuggestions()
-						dirty = true
+					} else if page==pageFavorites {
+						fav:=favoriteTickers(all,favorites)
+						if favoriteSel>=0&&favoriteSel<len(fav){openDetail(fav[favoriteSel].Symbol);dirty=true}
+					} else if page==pageSearch {
+						// A ONLY enters a keyboard character; never opens a coin.
+						if !focusSuggestions {
+							key:=searchKeyboard[kbRow][kbCol]
+							query=applySearchKey(query,key)
+							suggSel=0
+							refreshSuggestions()
+							dirty=true
+						}
 					}
+
 
 				case actB:
 					if detail {
-						// Trong màn hình chi tiết, B luôn quay lại đúng màn hình đã mở chi tiết.
-						detail = false
-						page = detailFrom
-						dirty = true
-					} else if page == pageSearch && query != "" {
-						// Ngoài màn hình chi tiết, B vẫn chỉ xóa một ký tự tìm kiếm.
-						query = backspaceQuery(query)
-						suggSel = 0
-						focusSuggestions = false
-						refreshSuggestions()
-						dirty = true
+						detail=false
+						page=pageFavorites
+						dirty=true
+					} else if page==pageBusiness||page==pageHitech {
+						switch newsView {
+						case 2: newsView=1;newsErr="";dirty=true
+						case 1,3: newsView=0;newsErr="";dirty=true
+						}
+					} else if page==pageSearch&&query!="" {
+						query=backspaceQuery(query);suggSel=0;focusSuggestions=false
+						refreshSuggestions();dirty=true
 					}
+
 
 				case actX:
 					if detail {
-						doFetch()
-						doPairFetch()
-						nextFetch = time.Now().Add(refreshEvery)
-						doChartFetch(detailSymbol, chartRange, true)
-					} else if page == pageBusiness {
-      doGoldFetch()
-     } else if page == pageFavorites {
-						// Tab Yêu thích dùng tự động cập nhật, X không còn chức năng.
-					} else if page == pageSearch {
-						query = ""
-						suggSel = 0
-						focusSuggestions = false
+						doFetch();doPairFetch()
+						nextFetch=time.Now().Add(refreshEvery)
+						doChartFetch(detailSymbol,chartRange,true)
+					} else if page==pageBusiness||page==pageHitech {
+						switch newsView {
+						case 3: doGoldFetch()
+						case 1:
+							cat,ok:=newsCategoryFor(page,newsCategorySel)
+							if ok{doNewsFetch(cat.URL,"list")}
+						case 2:
+							if newsArticleActive.URL!=""{doNewsFetch(newsArticleActive.URL,"article")}
+						}
+					} else if page==pageSearch {
+						query="";suggSel=0;focusSuggestions=false
 						refreshSuggestions()
 					}
-					dirty = true
+					dirty=true
 
 				case actY:
 					if detail {
@@ -3486,18 +3503,15 @@ func main() {
 						dirty = true
 					}
 
+
 				case actL1, actR1:
-					// Only two top-level tabs. Search is an internal BINANCE view.
-					detail = false
-					if page == pageSearch {
-						query = ""
-						suggSel = 0
-						focusSuggestions = false
-						refreshSuggestions()
+					detail=false
+					if page==pageSearch {
+						query="";suggSel=0;focusSuggestions=false;refreshSuggestions()
 					}
-					if ac == actR1 {page = cycleMainPage(page, 1)} else {page = cycleMainPage(page, -1)}
-					if page == pageBusiness && (gold.FetchedAt.IsZero() || time.Since(gold.FetchedAt) > goldRefreshInterval) && time.Since(goldLastAttempt) > 10*time.Second {doGoldFetch()}
-					dirty = true
+					if ac==actR1 {page=cycleMainPage(page,1)} else {page=cycleMainPage(page,-1)}
+					newsView=0;newsCategorySel=0;newsArticleSel=0
+					dirty=true
 
 				case actSelect:
 					if detail {
@@ -3510,9 +3524,9 @@ func main() {
 							_ = saveFavorites(favorites)
 							dirty = true
 						}
-					} else if page == pageBusiness {
-      // Chỉ xem bảng giá, không giao dịch.
-     } else if page == pageFavorites {
+					} else if page==pageBusiness||page==pageHitech {
+                        // News categories have no favourites action.
+                    } else if page == pageFavorites {
 						fav := favoriteTickers(all, favorites)
 						if len(fav) > 0 && favoriteSel < len(fav) {
 							delete(favorites, fav[favoriteSel].Symbol)
@@ -3540,29 +3554,22 @@ func main() {
 					}
 
 				case actStart:
-					if page == pageBusiness {break}
-					if page == pageSearch {
-						// START hides the keyboard and returns to the last opened pair.
-						page = pageFavorites
-						if detailSymbol != "" {
-							if _, ok := findTicker(all, detailSymbol); ok {
-								detail = true
-								detailFrom = pageFavorites
-								doChartFetch(detailSymbol, chartRange, false)
-							}
-						}
-					} else {
-						// START reveals the search field and keyboard without leaving BINANCE.
-						detail = false
-						page = pageSearch
-						query = ""
-						suggSel = 0
-						focusSuggestions = false
-						kbRow, kbCol = 0, 0
+					if page==pageSearch {
+						// Always return to BINANCE grid. Never reopen a stale coin detail.
+						page=pageFavorites
+						detail=false
+						query="";suggSel=0;focusSuggestions=false
 						refreshSuggestions()
+						dirty=true
+					} else if page==pageFavorites {
+						detail=false
+						page=pageSearch
+						query="";suggSel=0;focusSuggestions=false
+						kbRow,kbCol=0,0
+						refreshSuggestions()
+						dirty=true
 					}
-					dirty = true
-				}
+
 			}
 
 			if dirty {
