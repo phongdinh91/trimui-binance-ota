@@ -2,7 +2,7 @@ package main
 
 import (
  "image"
- "image/color"
+ stdcolor "image/color"
  "image/png"
  "bytes"
  "io"
@@ -47,7 +47,7 @@ type articleTransport func(*http.Request)(*http.Response,error)
 func(f articleTransport)RoundTrip(r *http.Request)(*http.Response,error){return f(r)}
 func Test24hImageLoaderPNG(t *testing.T){
  img:=image.NewRGBA(image.Rect(0,0,18,16))
- img.Set(0,0,color.RGBA{255,0,0,255})
+ img.Set(0,0,stdcolor.RGBA{255,0,0,255})
  var b bytes.Buffer
  if e:=png.Encode(&b,img);e!=nil{t.Fatal(e)}
  client:=&http.Client{Transport:articleTransport(func(r *http.Request)(*http.Response,error){
