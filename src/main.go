@@ -1762,25 +1762,24 @@ func drawBottomTabs(fb *framebuffer, active int, hint string) {
  margin:=max(18,fb.w/50)
  if hint!="" {drawASCIIRatio(fb,margin,y+10,3,2,hint,cMuted)}
  tabs:=[]struct{page int;label string}{
-  {pageSearch,"TÌM KIẾM"},{pageFavorites,"YÊU THÍCH"},{pageBusiness,"KINH DOANH"},
+  {pageFavorites,"BINANCE"}, {pageBusiness,"KINH DOANH"},
  }
  tabY:=y+58
  for i,t:=range tabs {
-  center:=fb.w*(i*2+1)/6
+  center:=fb.w*(i*2+1)/4
   x:=center-asciiWidth(2,t.label)/2
   clr:=cMuted
-  if active==t.page {clr=cYellow;fb.rect(fb.w*i/3+7,tabY+24,fb.w/3-14,4,cYellow)}
+  activeTab:=active==t.page || (active==pageSearch&&t.page==pageFavorites)
+  if activeTab {clr=cYellow;fb.rect(fb.w*i/2+8,tabY+24,fb.w/2-16,4,cYellow)}
   drawASCII(fb,x,tabY,2,t.label,clr)
  }
 }
 
-// L1/R1 switches between Search, Favorites, and Business (with wrap-around).
+// L1/R1 switches between BINANCE and KINH DOANH.
 func cycleMainPage(page,dir int)int {
- ordered:=[]int{pageSearch,pageFavorites,pageBusiness}
- for i,p:=range ordered {
-  if p==page {return ordered[(i+dir+len(ordered))%len(ordered)]}
- }
- return pageSearch
+ if page==pageSearch {page=pageFavorites}
+ if page==pageBusiness {return pageFavorites}
+ return pageBusiness
 }
 
 func favoriteTickers(all []ticker, favorites map[string]bool) []ticker {
@@ -2077,8 +2076,8 @@ func renderFavoritesGrid(fb *framebuffer, xs []ticker, sel int, charts map[strin
 		msg := "CHƯA CÓ CẶP YÊU THÍCH"
 		drawASCII(fb, fb.w/2-asciiWidth(2, msg)/2, headerH+90, 2, msg, cMuted)
 		drawFavoriteMark(fb, fb.w/2-14, headerH+135, 28, false)
-		drawASCII(fb, fb.w/2-asciiWidth(1, "CHUYỂN SANG TÌM KIẾM ĐỂ GẮN SAO")/2, headerH+185, 1, "CHUYỂN SANG TÌM KIẾM ĐỂ GẮN SAO", cYellow)
-		drawBottomTabs(fb, pageFavorites, "A: MỞ   SELECT: BỎ SAO   TỰ ĐỘNG CẬP NHẬT")
+		drawASCII(fb, fb.w/2-asciiWidth(1, "START: TÌM KIẾM ĐỂ GẮN SAO")/2, headerH+185, 1, "START: TÌM KIẾM ĐỂ GẮN SAO", cYellow)
+		drawBottomTabs(fb, pageFavorites, "START: TÌM KIẾM   A: MỞ   SELECT: BỎ SAO")
 		return
 	}
 	if sel < 0 {
@@ -2140,7 +2139,7 @@ func renderFavoritesGrid(fb *framebuffer, xs []ticker, sel int, charts map[strin
 	if loading {
 		drawASCII(fb, margin, headerH-18, 1, "ĐANG CẬP NHẬT...", cMuted)
 	}
-	drawBottomTabs(fb, pageFavorites, "A: MỞ   SELECT: BỎ SAO   TỰ ĐỘNG CẬP NHẬT")
+	drawBottomTabs(fb, pageFavorites, "START: TÌM KIẾM   A: MỞ   SELECT: BỎ SAO")
 }
 
 func renderSearch(fb *framebuffer, a uiAssets, query string, suggestions []ticker, suggSel int, focusSuggestions bool, kbRow, kbCol int, cursorVisible bool, loading bool, errMsg string, updated time.Time, stale bool, favorites map[string]bool) {
@@ -2268,7 +2267,7 @@ func renderSearch(fb *framebuffer, a uiAssets, query string, suggestions []ticke
 		}
 	}
 	// Thanh tab vẫn luôn hiện ở màn Tìm kiếm, không có dòng chú thích chọn gợi ý.
-	drawBottomTabs(fb, pageSearch, "A: NHẬP   Y: ĐỔI VÙNG   SELECT: GẮN SAO   B: XÓA   X: XÓA HẾT")
+	drawBottomTabs(fb, pageSearch, "A: NHẬP/MỞ   START: ẨN   Y: ĐỔI VÙNG   SELECT: SAO")
 	if errMsg != "" && len(suggestions) == 0 && query != "" {
 		drawASCII(fb, fb.w-asciiWidth(1, "MẤT MẠNG")-margin, headerH-18, 1, "MẤT MẠNG", cRed)
 	}
@@ -2950,7 +2949,7 @@ func main() {
  }
 
 	// v0.13: màn chi tiết dùng B để quay lại; D-pad không đổi cặp coin.
-	page := pageSearch
+	page := pageFavorites
 	favoriteSel := 0
 	query := ""
 	suggestions := []ticker(nil)
@@ -2960,7 +2959,7 @@ func main() {
 	cursorVisible := true
 	nextCursorBlink := time.Now().Add(500 * time.Millisecond)
 	detail := false
-	detailFrom := pageSearch
+	detailFrom := pageFavorites
 	detailSymbol := ""
 	errMsg := ""
 	exitConfirm := false
