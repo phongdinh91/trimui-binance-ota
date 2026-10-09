@@ -3412,8 +3412,14 @@ func main() {
 							openDetail(fav[favoriteSel].Symbol)
 							dirty = true
 						}
-					} else if focusSuggestions && len(suggestions) > 0 {
-						// Ở tab Tìm kiếm, A không gắn sao và không mở chi tiết.
+					} else if page == pageSearch && focusSuggestions && len(suggestions) > 0 {
+						// A opens the selected pair in-place on BINANCE, without the keyboard.
+						openDetail(suggestions[suggSel].Symbol)
+						detailFrom = pageFavorites
+						page = pageFavorites
+						query = ""
+						focusSuggestions = false
+						refreshSuggestions()
 						dirty = true
 					} else {
 						key := searchKeyboard[kbRow][kbCol]
@@ -3473,13 +3479,17 @@ func main() {
 					}
 
 				case actL1, actR1:
-     if detail {detail=false}
-     if page==pageSearch {
-      query="";suggSel=0;focusSuggestions=false;refreshSuggestions()
-     }
-     if ac==actR1 {page=cycleMainPage(page,1)} else {page=cycleMainPage(page,-1)}
-     if page==pageBusiness && (gold.FetchedAt.IsZero() || time.Since(gold.FetchedAt)>goldRefreshInterval) && time.Since(goldLastAttempt)>10*time.Second {doGoldFetch()}
-     dirty=true
+					// Only two top-level tabs. Search is an internal BINANCE view.
+					detail = false
+					if page == pageSearch {
+						query = ""
+						suggSel = 0
+						focusSuggestions = false
+						refreshSuggestions()
+					}
+					if ac == actR1 {page = cycleMainPage(page, 1)} else {page = cycleMainPage(page, -1)}
+					if page == pageBusiness && (gold.FetchedAt.IsZero() || time.Since(gold.FetchedAt) > goldRefreshInterval) && time.Since(goldLastAttempt) > 10*time.Second {doGoldFetch()}
+					dirty = true
 
 				case actSelect:
 					if detail {
@@ -3522,7 +3532,28 @@ func main() {
 					}
 
 				case actStart:
-					// START không còn chức năng.
+					if page == pageBusiness {break}
+					if page == pageSearch {
+						// START hides the keyboard and returns to the last opened pair.
+						page = pageFavorites
+						if detailSymbol != "" {
+							if _, ok := findTicker(all, detailSymbol); ok {
+								detail = true
+								detailFrom = pageFavorites
+								doChartFetch(detailSymbol, chartRange, false)
+							}
+						}
+					} else {
+						// START reveals the search field and keyboard without leaving BINANCE.
+						detail = false
+						page = pageSearch
+						query = ""
+						suggSel = 0
+						focusSuggestions = false
+						kbRow, kbCol = 0, 0
+						refreshSuggestions()
+					}
+					dirty = true
 				}
 			}
 
