@@ -1,5 +1,20 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.34 — CÀI ĐẶT và OTA thủ công
+
+**Bốn tab chính:** BINANCE, KINH DOANH, HI-TECH và **CÀI ĐẶT**, chuyển qua lại bằng L1/R1.
+
+- **Phiên bản** xuất hiện ở **thanh ngang trên cùng**, ngay dưới đồng hồ và ngày, dùng một bố cục chung trên tất cả các tab; không hiển thị phiên bản ở chân màn hình.
+- **Chú thích nút** căn từ **mép trái**, các nhóm cách nhau vừa đủ để đọc. Không còn chia đều thành các cột cách xa nhau.
+- **Nguồn 24h:** dưới tiêu đề hai tab KINH DOANH và HI-TECH có chữ **24h.com.vn**.
+- **CÀI ĐẶT → CẬP NHẬT OTA:** bấm A để kiểm tra phiên bản từ manifest GitHub. App không kiểm tra OTA và không hiện thông báo cập nhật lúc khởi động, kể cả nếu còn file `ota.json` cũ từng bật `check_on_start`. Nếu có bản mới, người dùng chọn CẬP NHẬT để tải và cài đặt; nếu chưa có hoặc mất mạng, màn hình báo trạng thái rõ ràng.
+- **CÀI ĐẶT → CHỦ ĐỀ:** bấm A hoặc trái/phải để đổi công tắc **TỐI ⇄ SÁNG**; thay bảng màu chung cho các màn chính, trình đọc tin, thanh tab và biểu đồ. Thiết lập lưu trong `settings.json` và giữ qua OTA.
+- **CÀI ĐẶT → HIỆU ỨNG LED:** bấm A hoặc trái/phải để chọn **HỆ THỐNG**, **TẮT**, **VÀNG TĨNH**, **XANH TĨNH**, **TÍM TĨNH**, **NHỊP THỞ**. Chỉ ghi qua sysfs `/sys/class/led_anim/` nếu firmware có các node phù hợp và có quyền truy cập. Chế độ nhịp thở chỉ khả dụng khi driver công bố tên hiệu ứng và ID tương ứng; nếu không có, app báo lỗi. Không sử dụng driver `frame_hex` có nguy cơ treo khi ghi lặp. Trở lại **HỆ THỐNG** có thể cần **khởi động lại** để lấy lại hiệu ứng do Stock OS quản lý. Các tùy chọn được lưu và khởi áp dụng lại nếu đã chọn.
+- **CÀI ĐẶT → GIỚI THIỆU:** thông tin ứng dụng, phiên bản, thiết bị, kho mã GitHub `phongdinh91/trimui-binance-ota`, nguồn Binance Spot và tin từ 24h.com.vn.
+
+**Lưu ý:** Tính năng LED phụ thuộc vào firmware thực tế của Brick Pro, chưa được kiểm thử trên máy thật. Nếu không tương thích, để chế độ HỆ THỐNG. Công tắc chủ đề được kiểm thử trên framebuffer ảo và có thể cần tinh chỉnh một vài biểu tượng ảnh có màu cố định. OTA vẫn yêu cầu người dùng chấp thuận cài đặt.
+
+
 ## v0.33 — đồng bộ giao diện, đọc bài viết có ảnh và video
 
 - **Phiên bản:** chữ `v0.33` xuất hiện ở góc dưới bên phải, màu và cỡ nhất quán ở các tab; không còn cạnh tiêu đề BINANCE.
