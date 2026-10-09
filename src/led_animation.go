@@ -14,26 +14,51 @@ import (
  "time"
 )
 
-// Experimental animations control the eight top-bar LEDs only.
-// On supported Brick-family drivers, frame_hex requires effect_enable 1 -> 0
-// BETWEEN frames. Repeating frame_hex without that toggle can block in kernel.
+// Experimental animations address all device zones. Brick Pro (TG4040) has
+// a different LED topology from original Brick; sending only eight pixels
+// addressed a single strip and left the other zones unchanged.
+// frame_hex requires effect_enable 1 -> 0 BETWEEN writes, or the kernel
+// driver can block on the next write. Hardware output remains experimental.
 func ledFrameAnimated(mode int) bool {return mode==ledRainbow||mode==ledChase}
 
 var ledRainbowColors=[8]string{"FF2020","FF9900","FFE000","30FF30","00E8CF","205EFF","A230FF","FF40C0"}
 
-func ledAnimationFrame(mode,phase int) string {
- var pixels [8]string
+const (
+ ledOriginalBrickPixels=14
+ ledBrickProPixels=23
+)
+// Brick Pro exposes an additional REAR zone absent from original Brick.
+// Check the exact model when available and the rear brightness node as fallback.
+func ledAnimationPixelCount() int {
+ for _,file:=range []string{"/proc/device-tree/model","/proc/device-tree/compatible"}{
+  model,e:=os.ReadFile(file)
+  if e==nil {
+   lower:=strings.ToLower(strings.ReplaceAll(string(model),"\\x00"," "))
+   if strings.Contains(lower,"tg4040")||strings.Contains(lower,"brick pro")||strings.Contains(lower,"brickpro"){
+    return ledBrickProPixels
+   }
+  }
+ }
+ if _,e:=os.Stat(ledDriverPath("max_scale_rear"));e==nil{return ledBrickProPixels}
+ return ledOriginalBrickPixels
+}
+func ledAnimationFrameFor(mode,phase,pixelCount int)string{
+ if pixelCount!=ledOriginalBrickPixels&&pixelCount!=ledBrickProPixels{return ""}
+ pixels:=make([]string,pixelCount)
  for i:=range pixels {pixels[i]="000000"}
  if mode==ledRainbow{
-  for i:=range pixels {pixels[i]=ledRainbowColors[(i+phase)%8]}
- }else if mode==ledChase {
-  h:=phase%8
-  if h<0{h+=8}
-  pixels[h]="FFB900"
-  pixels[(h+7)%8]="704000"
-  pixels[(h+6)%8]="281200"
+  for i:=range pixels {pixels[i]=ledRainbowColors[(i+phase)%len(ledRainbowColors)]}
+ }else if mode==ledChase{
+  head:=phase%pixelCount
+  if head<0{head+=pixelCount}
+  pixels[head]="FFB900"
+  pixels[(head+pixelCount-1)%pixelCount]="704000"
+  pixels[(head+pixelCount-2)%pixelCount]="281200"
  }
- return strings.Join(pixels[:]," ")+" "
+ return strings.Join(pixels," ")+" "
+}
+func ledAnimationFrame(mode,phase int)string{
+ return ledAnimationFrameFor(mode,phase,ledAnimationPixelCount())
 }
 func ledAnimationDelay(speed int) time.Duration {
  switch speed {
@@ -48,8 +73,27 @@ func checkLEDFrameSupport()error{
  for _,node:=range []string{"frame_hex","effect_enable","max_scale","effect_rgb_hex_m","effect_m"} {
   path:=ledDriverPath(node)
   f,e:=os.OpenFile(path,os.O_WRONLY,0)
-  if e!=nil {return fmt.Errorf("không thể điều khiển LED %s: %w",node,e)}
+  if e!=nil{return fmt.Errorf("không thể điều khiển LED %s: %w",node,e)}
   _=f.Close()
+ }
+ if ledAnimationPixelCount()==ledBrickProPixels{
+  if _,e:=os.Stat(ledDriverPath("max_scale_rear"));e!=nil{
+   return errors.New("Brick Pro thiếu max_scale_rear; không bật hoạt ảnh toàn bộ vùng LED")
+  }
+ }
+ return nil
+}
+// Keep every available brightness zone active; clearing zone effect colours
+// prevents visible flashes during effect_enable toggles between frames.
+func prepareLEDZones(brightness int)error{
+ value:=strconv.Itoa(brightness)
+ for _,node:=range []string{"max_scale","max_scale_lr","max_scale_f1f2","max_scale_rear"}{
+  if node=="max_scale"{if e:=writeLEDNode(node,value);e!=nil{return e}
+  }else if e:=writeLEDOptional(node,value);e!=nil{return e}
+ }
+ for _,zone:=range []string{"m","f1","f2","lr","rear","l","r"}{
+  if e:=writeLEDOptional("effect_rgb_hex_"+zone,"000000 ");e!=nil{return e}
+  if e:=writeLEDOptional("effect_"+zone,"4");e!=nil{return e}
  }
  return nil
 }
@@ -115,12 +159,12 @@ func runLEDAnimationWorker(mode,brightness,speed int,feedback io.Writer)error{
  signal.Notify(signalCh,syscall.SIGTERM,syscall.SIGINT)
  defer signal.Stop(signalCh)
  defer func(){_ = writeLEDNode("effect_enable","1")}()
- if e:=writeLEDNode("max_scale",strconv.Itoa(brightness));e!=nil{return sendErr(e)}
- if e:=writeLEDNode("effect_rgb_hex_m","000000 ");e!=nil{return sendErr(e)}
- if e:=writeLEDNode("effect_m","4");e!=nil{return sendErr(e)}
+ if e:=prepareLEDZones(brightness);e!=nil{return sendErr(e)}
  if e:=writeLEDNode("effect_enable","0");e!=nil{return sendErr(e)}
  time.Sleep(160*time.Millisecond)
- if e:=writeLEDNode("frame_hex",ledAnimationFrame(mode,0));e!=nil{return sendErr(e)}
+ frame0:=ledAnimationFrame(mode,0)
+ if len(strings.Fields(frame0))!=ledAnimationPixelCount(){return sendErr(errors.New("bộ tạo khung LED không hợp lệ"))}
+ if e:=writeLEDNode("frame_hex",frame0);e!=nil{return sendErr(e)}
  fmt.Fprintln(feedback,"READY")
  delay:=ledAnimationDelay(speed)
  for frame:=1;;frame++{
