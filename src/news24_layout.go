@@ -15,6 +15,9 @@ func drawAppTopBar(fb *framebuffer, page int) int {
  if page==pageHitech{title="HI-TECH"}
  if page==pageSettings{title="CÀI ĐẶT"}
  drawASCIIRatio(fb,margin,10,9,2,title,cYellow)
+ if page==pageBusiness||page==pageHitech {
+  drawASCII(fb,margin,72,2,"24h.com.vn",cMuted)
+ }
  now:=time.Now()
  clock:=now.Format("15:04")
  date:=weekdayVI(now)+" "+now.Format("02/01/2006")
