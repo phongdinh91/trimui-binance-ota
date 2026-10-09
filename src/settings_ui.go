@@ -180,19 +180,23 @@ const (
  settingsOTA=0
  settingsTheme=1
  settingsLED=2
- settingsAbout=3
- settingsItemCount=4
+ settingsBrightness=3
+ settingsSpeed=4
+ settingsAbout=5
+ settingsItemCount=6
 )
 func ledStatusMessage(mode int)string{
  if mode==ledSystem{return "HỆ THỐNG: KHỞI ĐỘNG LẠI ĐỂ KHÔI PHỤC"}
- return "ĐÃ CHỌN "+ledModeNames[mode]
+ return "ĐÃ ÁP DỤNG "+ledModeNames[mode]
 }
 func settingsValue(s settingsFile,idx int)string{
  switch idx {
  case settingsOTA:return "BẤM A ĐỂ KIỂM TRA"
  case settingsTheme:if s.ThemeLight{return "SÁNG"};return "TỐI"
  case settingsLED:return ledModeNames[s.LEDMode]
- case settingsAbout:return "ỨNG DỤNG & NHÀ PHÁT TRIỂN"
+ case settingsBrightness:return fmt.Sprintf("%d / %d",s.LEDBrightness,ledBrightnessMax)
+ case settingsSpeed:return ledSpeedNames[s.LEDSpeed]
+ case settingsAbout:return "THÔNG TIN ỨNG DỤNG"
  }
  return ""
 }
@@ -207,34 +211,57 @@ func drawSlideToggle(fb *framebuffer,x,y int,on bool){
  if on{xx=x+w-36}
  fb.rect(xx,y+6,29,h-12,knob)
 }
+func drawSettingScale(fb *framebuffer,x,y,w,part,total int) {
+ h:=15
+ fb.rect(x,y,w,h,cMuted)
+ if total>0&&part>0{
+  v:=(w*part)/total
+  if v>w{v=w}
+  fb.rect(x,y,v,h,cYellow)
+ }
+}
 func drawAppSettings(fb *framebuffer,s settingsFile,selection int,checkingOTA bool,ledStatus string){
  fb.fill(cBg)
  top:=drawAppTopBar(fb,pageSettings)
  margin:=max(18,fb.w/50)
- drawASCII(fb,margin,top+8,2,"TÙY CHỈNH TRÊN BRICK PRO",cMuted)
- labels:=[]string{"CẬP NHẬT OTA","CHỦ ĐỀ GIAO DIỆN","HIỆU ỨNG LED","GIỚI THIỆU"}
- gap:=12
- yTop:=top+52
+ yTop:=top+28
  footer:=bottomTabsHeight(fb)
- rowH:=max(70,min(112,(fb.h-footer-yTop-18)/settingsItemCount-gap))
+ gap:=8
+ usable:=fb.h-footer-yTop-12
+ rowH:=max(60,min(94,(usable-gap*(settingsItemCount-1))/settingsItemCount))
+ labels:=[]string{
+  "CẬP NHẬT OTA","CHỦ ĐỀ SÁNG / TỐI","HIỆU ỨNG LED",
+  "ĐỘ SÁNG LED","TỐC ĐỘ NHÁY","GIỚI THIỆU",
+ }
  for i,label:=range labels{
   y:=yTop+i*(rowH+gap)
-  bg:=cPanel;if selection==i{bg=cPanel2}
+  bg:=cPanel
+  if selection==i{bg=cPanel2}
   fb.rect(margin,y,fb.w-margin*2,rowH,bg)
   if selection==i{fb.rect(margin,y,6,rowH,cYellow)}
-  drawASCII(fb,margin+20,y+14,2,label,cText)
+  // 3x bold (two pixel strokes) replaces former 2x labels.
+  xx:=margin+20
+  drawASCII(fb,xx,y+7,3,label,cText)
+  drawASCII(fb,xx+1,y+7,3,label,cText)
   caption:=settingsValue(s,i)
   if i==settingsOTA&&checkingOTA{caption="ĐANG KIỂM TRA GITHUB..."}
-  if i==settingsLED&&ledStatus!=""{caption=cutNews(settingsValue(s,i)+" - "+ledStatus,62)}
-  drawASCII(fb,margin+20,y+49,1,caption,cMuted)
-  if i==settingsTheme{
-   drawSlideToggle(fb,fb.w-margin-120,y+19,s.ThemeLight)
-  }else{
-   drawASCII(fb,fb.w-margin-30,y+25,2,">",cYellow)
+  if i==settingsLED&&ledStatus!=""{caption=cutNews(ledStatus,50)}
+  if i==settingsSpeed && !ledDynamic(s.LEDMode) {caption+=" (CHO HIỆU ỨNG ĐỘNG)"}
+  drawASCII(fb,xx,y+40,2,cutNews(caption,50),cMuted)
+  switch i {
+  case settingsTheme:
+   drawSlideToggle(fb,fb.w-margin-125,y+16,s.ThemeLight)
+  case settingsBrightness:
+   drawSettingScale(fb,fb.w-margin-185,y+25,140,s.LEDBrightness,ledBrightnessMax)
+  case settingsSpeed:
+   drawSettingScale(fb,fb.w-margin-185,y+25,140,ledSpeedLevels+1-s.LEDSpeed,ledSpeedLevels)
+  default:
+   drawASCII(fb,fb.w-margin-28,y+22,2,">",cYellow)
   }
  }
- drawBottomTabs(fb,pageSettings,"A: CHỌN   LÊN/XUỐNG: DI CHUYỂN   TRÁI/PHẢI: ĐỔI LED")
+ drawBottomTabs(fb,pageSettings,"A: CHỌN   TRÁI/PHẢI: ĐIỀU CHỈNH   LÊN/XUỐNG: DI CHUYỂN")
 }
+
 func drawAboutApp(fb *framebuffer){
  fb.fill(cBg)
  top:=drawAppTopBar(fb,pageSettings)
