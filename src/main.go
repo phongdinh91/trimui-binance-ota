@@ -3407,7 +3407,24 @@ func main() {
 
 
 				case actLeft:
-					if detail {
+                    if page==pageSettings {
+                        if !settingsAboutVisible{
+                            if settingsSelected==settingsLED{
+                                next:=settingsNextLED(settings.LEDMode,-1)
+                                if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
+                                    settings.LEDMode=next
+                                    ledStatus="ĐÃ CHỌN "+ledModeNames[next]
+                                    _=saveSettings(settings)
+                                }
+                                dirty=true
+                            } else if settingsSelected==settingsTheme {
+                                settings.ThemeLight=false
+                                applyTheme(settings.ThemeLight)
+                                _=saveSettings(settings)
+                                dirty=true
+                            }
+                        }
+                    } else if detail {
 					} else if page==pageBusiness || page==pageHitech {
                        if newsView==0 && newsCategorySel%2==1 {newsCategorySel--;dirty=true}
 					} else if page==pageFavorites {
@@ -3422,7 +3439,24 @@ func main() {
 
 
 				case actRight:
-					if detail {
+                    if page==pageSettings {
+                        if !settingsAboutVisible{
+                            if settingsSelected==settingsLED{
+                                next:=settingsNextLED(settings.LEDMode,1)
+                                if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
+                                    settings.LEDMode=next
+                                    ledStatus="ĐÃ CHỌN "+ledModeNames[next]
+                                    _=saveSettings(settings)
+                                }
+                                dirty=true
+                            } else if settingsSelected==settingsTheme {
+                                settings.ThemeLight=true
+                                applyTheme(settings.ThemeLight)
+                                _=saveSettings(settings)
+                                dirty=true
+                            }
+                        }
+                    } else if detail {
 					} else if page==pageBusiness || page==pageHitech {
                        if newsView==0 && newsCategorySel%2==0 && newsCategorySel+1<len(newsCategories(page)){newsCategorySel++;dirty=true}
 					} else if page==pageFavorites {
@@ -3438,7 +3472,28 @@ func main() {
 
 
 				case actA:
-					if detail {
+                    if page==pageSettings {
+                        if !settingsAboutVisible {
+                            switch settingsSelected{
+                            case settingsOTA:
+                                if !otaChecking.Load() {doOTACheck()}
+                            case settingsTheme:
+                                settings.ThemeLight=!settings.ThemeLight
+                                applyTheme(settings.ThemeLight)
+                                _=saveSettings(settings)
+                            case settingsLED:
+                                next:=settingsNextLED(settings.LEDMode,1)
+                                if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
+                                    settings.LEDMode=next
+                                    ledStatus="ĐÃ CHỌN "+ledModeNames[next]
+                                    _=saveSettings(settings)
+                                }
+                            case settingsAbout:
+                                settingsAboutVisible=true
+                            }
+                            dirty=true
+                        }
+					} else if detail {
 						// Charts are read-only.
 					} else if page==pageBusiness || page==pageHitech {
 						switch newsView {
@@ -3492,7 +3547,9 @@ func main() {
 
 
 				case actB:
-					if detail {
+                    if page==pageSettings{
+                        if settingsAboutVisible{settingsAboutVisible=false;dirty=true}
+                    } else if detail {
 						detail=false
 						page=pageFavorites
 						dirty=true
@@ -3565,8 +3622,8 @@ func main() {
 							_ = saveFavorites(favorites)
 							dirty = true
 						}
-					} else if page==pageBusiness||page==pageHitech {
-                        // News categories have no favourites action.
+					} else if page==pageBusiness||page==pageHitech||page==pageSettings {
+                        // No favourites action outside BINANCE.
                     } else if page == pageFavorites {
 						fav := favoriteTickers(all, favorites)
 						if len(fav) > 0 && favoriteSel < len(fav) {
@@ -3619,7 +3676,13 @@ func main() {
 						page = detailFrom
 						dirty = true
 					}
-				} else if page==pageBusiness || page==pageHitech {
+				 } else if page==pageSettings {
+                    if settingsAboutVisible{
+                        drawAboutApp(fb)
+                    } else {
+                        drawAppSettings(fb,settings,settingsSelected,otaChecking.Load(),ledStatus)
+                    }
+                } else if page==pageBusiness || page==pageHitech {
                     cat,ok:=newsCategoryFor(page,newsCategorySel)
                     switch newsView {
                     case 0:
