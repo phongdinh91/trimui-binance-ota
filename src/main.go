@@ -3422,7 +3422,9 @@ func main() {
 					if detail {
 						// Keep selected coin while viewing chart.
 					} else if page==pageSettings {
-                        if !settingsAboutVisible&&settingsSelected>0 {settingsSelected--;dirty=true}
+                        if ledSubmenuVisible {
+                            if ledSelected>0{ledSelected--;dirty=true}
+                        }else if !settingsAboutVisible&&settingsSelected>0 {settingsSelected--;dirty=true}
                     } else if page==pageBusiness || page==pageHitech {
                         switch newsView {
                         case 0: if newsCategorySel>=2 {newsCategorySel-=2;dirty=true}
@@ -3447,7 +3449,9 @@ func main() {
 				case actDown:
 					if detail {
 					} else if page==pageSettings {
-                        if !settingsAboutVisible&&settingsSelected<settingsItemCount-1 {settingsSelected++;dirty=true}
+                        if ledSubmenuVisible {
+                            if ledSelected<ledSubItemCount-1{ledSelected++;dirty=true}
+                        }else if !settingsAboutVisible&&settingsSelected<settingsItemCount-1 {settingsSelected++;dirty=true}
                     } else if page==pageBusiness || page==pageHitech {
                         switch newsView {
                         case 0: if newsCategorySel+2<len(newsCategories(page)){newsCategorySel+=2;dirty=true}
@@ -3469,19 +3473,17 @@ func main() {
 
 				case actLeft:
                     if page==pageSettings {
-                        if !settingsAboutVisible {
-                            switch settingsSelected {
-                            case settingsLED:
-                                changeLED(settingsNextLED(settings.LEDMode,-1),settings.LEDBrightness,settings.LEDSpeed)
-                            case settingsBrightness:
-                                changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,-1),settings.LEDSpeed)
-                            case settingsSpeed:
-                                changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,-1))
-                            case settingsTheme:
-                                settings.ThemeLight=false
-                                applyTheme(settings.ThemeLight)
-                                _=saveSettings(settings)
+                        if ledSubmenuVisible {
+                            switch ledSelected {
+                            case ledSubEffect: moveLEDEffect(-1)
+                            case ledSubBrightness: changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,-1),settings.LEDSpeed)
+                            case ledSubSpeed: changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,-1))
                             }
+                            dirty=true
+                        }else if !settingsAboutVisible&&settingsSelected==settingsTheme{
+                            settings.ThemeLight=false
+                            applyTheme(false)
+                            _=saveSettings(settings)
                             dirty=true
                         }
                     } else if detail {
@@ -3500,19 +3502,17 @@ func main() {
 
 				case actRight:
                     if page==pageSettings {
-                        if !settingsAboutVisible {
-                            switch settingsSelected {
-                            case settingsLED:
-                                changeLED(settingsNextLED(settings.LEDMode,1),settings.LEDBrightness,settings.LEDSpeed)
-                            case settingsBrightness:
-                                changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
-                            case settingsSpeed:
-                                changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
-                            case settingsTheme:
-                                settings.ThemeLight=true
-                                applyTheme(settings.ThemeLight)
-                                _=saveSettings(settings)
+                        if ledSubmenuVisible {
+                            switch ledSelected {
+                            case ledSubEffect: moveLEDEffect(1)
+                            case ledSubBrightness: changeLED(settings.LEDMode,settingsNextBrightness(settings.LEDBrightness,1),settings.LEDSpeed)
+                            case ledSubSpeed: changeLED(settings.LEDMode,settings.LEDBrightness,settingsNextSpeed(settings.LEDSpeed,1))
                             }
+                            dirty=true
+                        }else if !settingsAboutVisible&&settingsSelected==settingsTheme{
+                            settings.ThemeLight=true
+                            applyTheme(true)
+                            _=saveSettings(settings)
                             dirty=true
                         }
                     } else if detail {
