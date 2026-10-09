@@ -17,10 +17,30 @@ const (
  ledCyan
  ledPurple
  ledBreathing
+ ledBlink
+ ledRainbow
+ ledChase
+ ledRed
+ ledGreen
  ledModeCount
 )
-var ledModeNames=[]string{"HỆ THỐNG","TẮT","VÀNG TĨNH","XANH TĨNH","TÍM TĨNH","NHỊP THỞ"}
-var ledModeColors=[]string{"","000000","FFB900","00CCFF","B46AFF","FFB900"}
+const (
+ ledBrightnessMin=10
+ ledBrightnessMax=60
+ ledBrightnessDefault=40
+ ledSpeedDefault=3
+ ledSpeedLevels=5
+)
+var ledModeNames=[]string{
+ "HỆ THỐNG","TẮT","VÀNG TĨNH","XANH TĨNH","TÍM TĨNH",
+ "NHỊP THỞ","NHẤP NHÁY","CẦU VỒNG","CHẠY ĐUỔI","ĐỎ TĨNH","LỤC TĨNH",
+}
+var ledModeColors=[]string{
+ "","000000","FFB900","00CCFF","B46AFF",
+ "FFB900","FFB900","00CCFF","FFB900","FF3030","00DD70",
+}
+var ledSpeedNames=[]string{"","RẤT NHANH","NHANH","VỪA","CHẬM","RẤT CHẬM"}
+var ledDurationMS=[]int{0,200,350,600,1000,1600}
 
 func applyTheme(light bool){
  if light {
@@ -45,12 +65,29 @@ func applyTheme(light bool){
  cRed=color{234,57,67}
  cBlue=color{61,130,246}
 }
+
 func settingsNextLED(current,direction int)int{
- return (current+direction+ledModeCount)%ledModeCount
+ return (current+direction%ledModeCount+ledModeCount)%ledModeCount
+}
+func settingsNextBrightness(current,direction int)int{
+ value:=current+10*direction
+ if value<ledBrightnessMin{return ledBrightnessMin}
+ if value>ledBrightnessMax{return ledBrightnessMax}
+ return value
+}
+func settingsNextSpeed(current,direction int)int{
+ value:=current+direction
+ if value<1{return 1}
+ if value>ledSpeedLevels{return ledSpeedLevels}
+ return value
+}
+func ledDynamic(mode int)bool {
+ return mode==ledBreathing||mode==ledBlink||mode==ledRainbow||mode==ledChase
 }
 func ledDriverPath(name string)string{return filepath.Join("/sys/class/led_anim",name)}
+var ledNodeName=regexp.MustCompile("^[a-z0-9_]+$")
 func writeLEDNode(name,value string)error{
- if !regexp.MustCompile("^[a-z0-9_]+$").MatchString(name){return errors.New("LED không hợp lệ")}
+ if !ledNodeName.MatchString(name){return errors.New("LED node không hợp lệ")}
  p:=ledDriverPath(name)
  if _,err:=os.Stat(p);err!=nil{return fmt.Errorf("Stock OS không hỗ trợ %s: %w",name,err)}
  return os.WriteFile(p,[]byte(value+"\n"),0644)
@@ -60,10 +97,20 @@ func writeLEDOptional(name,value string)error{
  return writeLEDNode(name,value)
 }
 var ledIDRe=regexp.MustCompile("\\b([0-9]{1,2})\\b")
-func ledBreathEffectID(driverHelp string)(string,bool){
- for _,line:=range strings.Split(driverHelp,"\n"){
+func ledNativeEffectID(driverNames string, mode int)(string,bool){
+ if !ledDynamic(mode){return "",false}
+ var keywords []string
+ switch mode {
+ case ledBreathing:keywords=[]string{"breathe","breath","pulse"}
+ case ledBlink:keywords=[]string{"blink","flash","flicker"}
+ case ledRainbow:keywords=[]string{"rainbow","colorcycle","colourcycle","color cycle","rgb cycle"}
+ case ledChase:keywords=[]string{"chase","sweep","running","flow"}
+ }
+ for _,line:=range strings.Split(driverNames,"\n"){
   lower:=strings.ToLower(line)
-  if !strings.Contains(lower,"breath")&&!strings.Contains(lower,"pulse"){continue}
+  selected:=false
+  for _,word:=range keywords{if strings.Contains(lower,word){selected=true;break}}
+  if !selected {continue}
   if m:=ledIDRe.FindStringSubmatch(line);len(m)==2{
    id,err:=strconv.Atoi(m[1])
    if err==nil&&id>=0&&id<=16{return m[1],true}
@@ -71,44 +118,59 @@ func ledBreathEffectID(driverHelp string)(string,bool){
  }
  return "",false
 }
-// Use documented sysfs nodes only. Default never touches OS LED settings.
-func applyBrickLED(mode int)error{
- if mode==ledSystem{return nil}
- if mode<0||mode>=ledModeCount{return errors.New("chế độ LED không hợp lệ")}
- if _,err:=os.Stat(ledDriverPath("effect_enable"));err!=nil{
-  return errors.New("không tìm thấy driver LED của Brick Pro (Stock OS)")
+func ledBreathEffectID(driverHelp string)(string,bool){return ledNativeEffectID(driverHelp,ledBreathing)}
+
+func applyBrickLED(mode int)error {
+ return applyBrickLEDConfig(settingsFile{LEDMode:mode,LEDBrightness:ledBrightnessDefault,LEDSpeed:ledSpeedDefault})
+}
+// Only native effect_* sysfs controls; deliberately NO frame_hex or software animation loops.
+func applyBrickLEDConfig(s settingsFile)error{
+ if s.LEDMode==ledSystem{return nil}
+ if s.LEDMode<0||s.LEDMode>=ledModeCount{return errors.New("chế độ LED không hợp lệ")}
+ if s.LEDBrightness<ledBrightnessMin||s.LEDBrightness>ledBrightnessMax {return errors.New("độ sáng LED không hợp lệ")}
+ if s.LEDSpeed<1||s.LEDSpeed>ledSpeedLevels{return errors.New("tốc độ LED không hợp lệ")}
+ for _,node:=range []string{"effect_enable","max_scale"}{
+  if _,err:=os.Stat(ledDriverPath(node));err!=nil{return fmt.Errorf("Stock OS không có driver LED (%s)",node)}
  }
- if mode==ledOff{
+ if s.LEDMode==ledOff {
   if err:=writeLEDNode("max_scale","0");err!=nil{return err}
   for _,node:=range []string{"max_scale_lr","max_scale_f1f2","max_scale_rear"}{
    if err:=writeLEDOptional(node,"0");err!=nil{return err}
   }
   return nil
  }
- if mode==ledBreathing{
-  effects,err:=os.ReadFile(ledDriverPath("effect_names"))
-  if err!=nil{return errors.New("firmware không công bố danh sách hiệu ứng LED")}
-  id,ok:=ledBreathEffectID(string(effects))
-  if !ok{return errors.New("firmware không có hiệu ứng NHỊP THỞ tương thích")}
-  if err:=writeLEDNode("max_scale","50");err!=nil{return err}
+ nativeID:="4" // stock native static colour mode
+ if ledDynamic(s.LEDMode){
+  for _,node:=range []string{"effect_names","effect_duration_m","effect_m","effect_rgb_hex_m"}{
+   if _,err:=os.Stat(ledDriverPath(node));err!=nil{return fmt.Errorf("Firmware không hỗ trợ hiệu ứng động (%s)",node)}
+  }
+  names,err:=os.ReadFile(ledDriverPath("effect_names"))
+  if err!=nil{return errors.New("không đọc được danh sách hiệu ứng của firmware")}
+  var ok bool
+  nativeID,ok=ledNativeEffectID(string(names),s.LEDMode)
+  if !ok{return fmt.Errorf("firmware không có hiệu ứng %s tương thích",ledModeNames[s.LEDMode])}
+ }
+ bright:=strconv.Itoa(s.LEDBrightness)
+ if err:=writeLEDNode("max_scale",bright);err!=nil{return err}
  for _,node:=range []string{"max_scale_lr","max_scale_f1f2","max_scale_rear"}{
-  if err:=writeLEDOptional(node,"50");err!=nil{return err}
+  if err:=writeLEDOptional(node,bright);err!=nil{return err}
  }
-  if err:=writeLEDNode("effect_rgb_hex_m",ledModeColors[mode]+" ");err!=nil{return err}
-  if err:=writeLEDNode("effect_m",id);err!=nil{return err}
-  if err:=writeLEDOptional("effect_cycles_m","-1");err!=nil{return err}
-  return writeLEDNode("effect_enable","1")
+ colorHex:=ledModeColors[s.LEDMode]+" "
+ if err:=writeLEDNode("effect_rgb_hex_m",colorHex);err!=nil{return err}
+ if ledDynamic(s.LEDMode) {
+  duration:=strconv.Itoa(ledDurationMS[s.LEDSpeed])
+  // Native driver animation duration (milliseconds); faster means shorter duration.
+  if err:=writeLEDNode("effect_duration_m",duration);err!=nil{return err}
  }
- if err:=writeLEDNode("max_scale","50");err!=nil{return err}
- for _,node:=range []string{"max_scale_lr","max_scale_f1f2","max_scale_rear"}{
-  if err:=writeLEDOptional(node,"50");err!=nil{return err}
- }
- if err:=writeLEDNode("effect_rgb_hex_m",ledModeColors[mode]+" ");err!=nil{return err}
- if err:=writeLEDNode("effect_m","4");err!=nil{return err}
+ if err:=writeLEDNode("effect_m",nativeID);err!=nil{return err}
  if err:=writeLEDOptional("effect_cycles_m","-1");err!=nil{return err}
+ // Additional LED zones use native effect IDs only when those zone nodes exist.
  for _,zone:=range []string{"f1","f2","lr","rear"}{
-  if err:=writeLEDOptional("effect_rgb_hex_"+zone,ledModeColors[mode]+" ");err!=nil{return err}
-  if err:=writeLEDOptional("effect_"+zone,"4");err!=nil{return err}
+  if err:=writeLEDOptional("effect_rgb_hex_"+zone,colorHex);err!=nil{return err}
+  if ledDynamic(s.LEDMode) {
+   if err:=writeLEDOptional("effect_duration_"+zone,strconv.Itoa(ledDurationMS[s.LEDSpeed]));err!=nil{return err}
+  }
+  if err:=writeLEDOptional("effect_"+zone,nativeID);err!=nil{return err}
   if err:=writeLEDOptional("effect_cycles_"+zone,"-1");err!=nil{return err}
  }
  return writeLEDNode("effect_enable","1")
