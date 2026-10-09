@@ -594,40 +594,9 @@ func fetchOTAManifest(client *http.Client, manifestURL string) (otaManifest, err
 	return m, nil
 }
 
+// Backward-compatible entry point; the worker uses a progress callback.
 func downloadOTA(client *http.Client, m otaManifest, dst string) error {
-	req, err := http.NewRequest("GET", m.URL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("User-Agent", "Binance-TrimUI/"+appVersion)
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("OTA ZIP HTTP %d", resp.StatusCode)
-	}
-	f, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	h := sha256.New()
-	_, cpErr := io.Copy(io.MultiWriter(f, h), io.LimitReader(resp.Body, 64<<20))
-	closeErr := f.Close()
-	if cpErr != nil {
-		return cpErr
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	got := hex.EncodeToString(h.Sum(nil))
-	if got != m.SHA256 {
-		_ = os.Remove(dst)
-		return fmt.Errorf("SHA-256 sai: %s", got[:12])
-	}
-	return nil
+ return downloadOTAWithProgress(client,m,dst,nil)
 }
 
 func otaRelativeName(name string) (string, bool) {
@@ -649,12 +618,18 @@ func otaRelativeName(name string) (string, bool) {
 	return clean, true
 }
 
-func extractOTA(zipPath, stageDir string) error {
+func extractOTA(zipPath, stageDir string) error {return extractOTAWithProgress(zipPath,stageDir,nil)}
+
+func extractOTAWithProgress(zipPath, stageDir string, progress func(otaProgressEvent)) error {
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return err
 	}
 	defer zr.Close()
+ totalFiles:=int64(0)
+ for _,zf:=range zr.File {if _,ok:=otaRelativeName(zf.Name);ok&&!zf.FileInfo().IsDir(){totalFiles++}}
+ doneFiles:=int64(0)
+ reportOTA(progress,"extract",0,totalFiles,"")
 	for _, zf := range zr.File {
 		rel, ok := otaRelativeName(zf.Name)
 		if !ok {
@@ -673,6 +648,9 @@ func extractOTA(zipPath, stageDir string) error {
 			}
 			continue
 		}
+		if zf.UncompressedSize64>uint64(otaMaxFileSize) {
+            return fmt.Errorf("OTA file qua lon: %s",rel)
+        }
 		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
 			return err
 		}
@@ -692,17 +670,20 @@ func extractOTA(zipPath, stageDir string) error {
 			rc.Close()
 			return err
 		}
-		_, cpErr := io.Copy(out, io.LimitReader(rc, 32<<20))
+		n, cpErr := io.Copy(out, io.LimitReader(rc, otaMaxFileSize+1))
 		cl1, cl2 := rc.Close(), out.Close()
-		if cpErr != nil {
-			return cpErr
-		}
+		if cpErr != nil {return cpErr}
+        if n>otaMaxFileSize || uint64(n)!=zf.UncompressedSize64 {
+            return fmt.Errorf("OTA file bi cat/qua lon: %s",rel)
+        }
 		if cl1 != nil {
 			return cl1
 		}
 		if cl2 != nil {
 			return cl2
 		}
+        doneFiles++
+        reportOTA(progress,"extract",doneFiles,totalFiles,rel)
 	}
 	for _, req := range []string{"binance-gia", "launch.sh", "config.json"} {
 		if st, err := os.Stat(filepath.Join(stageDir, req)); err != nil || st.IsDir() {
@@ -753,7 +734,9 @@ func persistentOTAFile(rel string) bool {
 	}
 }
 
-func applyOTA(stageDir string) error {
+func applyOTA(stageDir string) error {return applyOTAWithProgress(stageDir,nil)}
+
+func applyOTAWithProgress(stageDir string, progress func(otaProgressEvent)) error {
 	root := appDir()
 	parent := filepath.Dir(root)
 	backup, err := os.MkdirTemp(parent, ".binance-ota-backup-")
@@ -782,6 +765,8 @@ func applyOTA(stageDir string) error {
 	if err != nil {
 		return err
 	}
+	reportOTA(progress,"install",0,int64(len(files)),"")
+    completed:=int64(0)
 	backed := make(map[string]bool)
 	created := make(map[string]bool)
 	rollback := func() {
@@ -822,11 +807,15 @@ func applyOTA(stageDir string) error {
 			rollback()
 			return err
 		}
+        completed++
+        reportOTA(progress,"install",completed,int64(len(files)),rel)
 	}
 	return nil
 }
 
-func performOTA(client *http.Client, m otaManifest) error {
+func performOTA(client *http.Client, m otaManifest) error {return performOTAWithProgress(client,m,nil)}
+
+func performOTAWithProgress(client *http.Client,m otaManifest, progress func(otaProgressEvent)) error {
 	parent := filepath.Dir(appDir())
 	work, err := os.MkdirTemp(parent, ".binance-ota-")
 	if err != nil {
@@ -838,13 +827,15 @@ func performOTA(client *http.Client, m otaManifest) error {
 	if err := os.MkdirAll(stage, 0755); err != nil {
 		return err
 	}
-	if err := downloadOTA(client, m, zipPath); err != nil {
+	if err := downloadOTAWithProgress(client, m, zipPath,progress); err != nil {
 		return err
 	}
-	if err := extractOTA(zipPath, stage); err != nil {
+	if err := extractOTAWithProgress(zipPath, stage,progress); err != nil {
 		return err
 	}
-	return applyOTA(stage)
+	if err:=applyOTAWithProgress(stage,progress);err!=nil{return err}
+ reportOTA(progress,"done",1,1,"")
+ return nil
 }
 
 type asset struct{ img image.Image }
