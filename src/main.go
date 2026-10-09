@@ -3554,18 +3554,12 @@ func main() {
 					}
 
 				case actStart:
-					if page==pageSearch {
-						// Always return to BINANCE grid. Never reopen a stale coin detail.
-						page=pageFavorites
+					if newPage,ok:=binanceStartTarget(page);ok {
+						// START always discards stale detail when toggling search.
+						page=newPage
 						detail=false
 						query="";suggSel=0;focusSuggestions=false
-						refreshSuggestions()
-						dirty=true
-					} else if page==pageFavorites {
-						detail=false
-						page=pageSearch
-						query="";suggSel=0;focusSuggestions=false
-						kbRow,kbCol=0,0
+						if page==pageSearch {kbRow,kbCol=0,0}
 						refreshSuggestions()
 						dirty=true
 					}
