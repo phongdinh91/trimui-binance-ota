@@ -1756,24 +1756,23 @@ func drawBottomTabs(fb *framebuffer, active int, hint string) {
  fb.rect(0,y,fb.w,footerH,cPanel)
  if hint!="" {drawEvenFooterHints(fb,hint,y+11)}
  tabs:=[]struct{page int;label string}{
-  {pageFavorites,"BINANCE"}, {pageBusiness,"KINH DOANH"}, {pageHitech,"HI-TECH"},
+  {pageFavorites,"BINANCE"}, {pageBusiness,"KINH DOANH"}, {pageHitech,"HI-TECH"}, {pageSettings,"CÀI ĐẶT"},
  }
  tabY:=y+55
  for i,t:=range tabs {
-  center:=fb.w*(i*2+1)/6
+  center:=fb.w*(i*2+1)/8
   x:=center-asciiWidth(2,t.label)/2
   clr:=cMuted
   activeTab:=active==t.page || (active==pageSearch&&t.page==pageFavorites)
-  if activeTab {clr=cYellow;fb.rect(fb.w*i/3+7,tabY+26,fb.w/3-14,4,cYellow)}
+  if activeTab {clr=cYellow;fb.rect(fb.w*i/4+7,tabY+26,fb.w/4-14,4,cYellow)}
   drawASCII(fb,x,tabY,2,t.label,clr)
+  if i==1 || i==2 {source:="24h.com.vn";drawASCII(fb,center-asciiWidth(1,source)/2,tabY+26,1,source,cMuted)}
  }
- // Version is in the lower-right corner, same size and color in every tab.
- margin:=max(14,fb.w/50)
- drawASCII(fb,fb.w-margin-asciiWidth(1,appVersion),fb.h-20,1,appVersion,cMuted)
+ // Version is displayed once in the top bar below the clock.
 }
 
 func cycleMainPage(page,dir int)int {
- ordered:=[]int{pageFavorites,pageBusiness,pageHitech}
+ ordered:=[]int{pageFavorites,pageBusiness,pageHitech,pageSettings}
  if page==pageSearch {page=pageFavorites}
  for i,p:=range ordered {
   if p==page{return ordered[(i+dir+len(ordered))%len(ordered)]}
