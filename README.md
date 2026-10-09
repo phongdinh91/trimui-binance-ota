@@ -1,5 +1,18 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.31 — BINANCE gộp tìm kiếm và yêu thích; OTA có tiến trình
+
+- **Hai tab chính:** **BINANCE** và **KINH DOANH**. Điều hướng bằng **L1/R1**.
+- Trong **BINANCE**, mặc định là thẻ hai cột của các cặp yêu thích; dùng D-pad và **A** để xem biểu đồ, **SELECT** bỏ sao.
+- **START** bật ô tìm kiếm và bàn phím ảo ngay trong BINANCE. Gõ cặp cần tìm, dùng **Y** để chuyển vùng bàn phím ↔ gợi ý, di chuyển đến cặp và bấm **A**: bàn phím tự ẩn, biểu đồ cặp đó hiển thị ngay trong BINANCE. **SELECT** trên gợi ý bật/tắt yêu thích. **B** xóa ký tự, **X** xóa hết.
+- **START lần nữa** mở ô tìm kiếm khi đang xem biểu đồ hoặc yêu thích; nếu đang tìm kiếm thì START ẩn bàn phím và trở lại biểu đồ vừa mở (nếu có), hoặc danh sách yêu thích.
+- Tab KINH DOANH vẫn lấy bảng giá vàng từ 24h.com.vn; **lên/xuống** chọn dòng, **X** cập nhật giá.
+- **OTA:** thông báo cập nhật có 4 trạng thái tải ZIP, xác thực SHA-256, giải nén, cài file; tải ZIP hiển thị số KB đã nhận và % thật khi máy chủ cung cấp dung lượng; giải nén/cài đặt hiển thị số file đã xử lý trên tổng số file. Không hiển thị phần trăm giả nếu chưa biết tổng kích thước. Có thông báo hoàn tất hoặc lỗi và nút khởi động lại.
+- Các file yêu thích, cài đặt và cache không nằm trong ZIP phát hành và được giữ nguyên khi OTA.
+
+**Chưa kiểm chứng trên thiết bị thật:** kiểm thử tự động và bản build ARM64 được thực hiện bằng GitHub Actions, nhưng bố cục nút và tốc độ OTA vẫn cần thử trên Brick Pro.
+
+
 Ứng dụng chỉ xem dữ liệu Binance Spot, nến và chỉ báo MA/BOLL/MACD. **Không giao dịch hoặc đặt lệnh.**
 
 ## Tự động phát hành OTA
