@@ -1,5 +1,19 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## Bản v0.32 — BINANCE, KINH DOANH, HI-TECH
+
+- Có **3 tab chính**: BINANCE → KINH DOANH → HI-TECH. Chuyển bằng **L1/R1**.
+- **BINANCE (Yêu thích):** D-pad chọn cặp, **A: MỞ**, **START: TÌM KIẾM**, **SELECT: BỎ SAO**.
+- **BINANCE (Tìm kiếm):** **A: NHẬP**, **Y: ĐỔI VÙNG**, **START: ẨN**, **SELECT: YÊU THÍCH**. A chỉ gõ bằng bàn phím ảo, **không mở coin**. SELECT trên gợi ý bật/tắt dấu sao. START đóng ô tìm kiếm, **về đúng màn lưới BINANCE**, không tự quay lại biểu đồ cặp vừa xem.
+- Chữ phiên bản bên cạnh BINANCE đã chỉnh **trái 1 px, xuống 2 px**.
+- **KINH DOANH:** lưới **12 ô (2 cột, cuộn theo dòng)** liên kết danh mục thực tế từ 24h.com.vn: Giá vàng, Tỷ giá, Chứng khoán, Kinh tế thế giới, Bất động sản, Doanh nhân, Nhà đẹp, Khởi nghiệp, Ngân hàng, Quản lý tiền, Doanh nghiệp, Thị trường. D-pad chọn mục, **A** mở nội dung, **B** quay lại; mục Giá vàng giữ bảng giá hiện có.
+- **HI-TECH:** lưới **12 ô** theo 24h.com.vn: Hi-tech, Điện thoại, Đánh giá, Laptop, Tin công nghệ, Điện tử gia dụng, Máy tính bảng, Bảng giá điện thoại, iPhone 17, Galaxy A, iPhone, Samsung Galaxy. D-pad, A, B giống tab KINH DOANH.
+- Trong danh mục báo, app tải danh sách tiêu đề tin; A mở trang **trích yếu** và B quay lại. Trích yếu phụ thuộc vào cấu trúc HTML, không thay thế trình duyệt đọc bài đầy đủ. X tải lại. Nếu mất kết nối/trang đổi cấu trúc, hiện thông báo thay vì tin giả.
+- OTA vẫn có tiến trình tải ZIP, kiểm tra SHA-256, giải nén và cài đặt; dữ liệu yêu thích/cài đặt vẫn được giữ lại.
+
+**Kiểm thử:** Các bài test Go và build Linux ARM64 qua GitHub Actions; vẫn cần kiểm tra bố cục và kết nối 24h trên TrimUI Brick Pro thực tế.
+
+
 ## v0.31 — BINANCE gộp tìm kiếm và yêu thích; OTA có tiến trình
 
 - **Hai tab chính:** **BINANCE** và **KINH DOANH**. Điều hướng bằng **L1/R1**.
