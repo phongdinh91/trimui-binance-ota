@@ -29,6 +29,7 @@ var (
  newsNodeStart=regexp.MustCompile("(?is)<(p|h2|h3|img|video|source|iframe)\\b[^>]*>")
  newsAttrRe=regexp.MustCompile("(?is)([a-zA-Z_][a-zA-Z0-9_:-]*)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))")
  newsImageMeta=regexp.MustCompile("(?is)<meta\\b[^>]*property\\s*=\\s*[\"']og:image[\"'][^>]*>")
+ newsVideoMeta=regexp.MustCompile("(?is)<meta\\b[^>]*property\\s*=\\s*[\"']og:video(?::url)?[\"'][^>]*>")
 )
 func newsAttribute(raw string, names ...string)string {
  attrs:=map[string]string{}
@@ -47,6 +48,7 @@ func newsAttribute(raw string, names ...string)string {
 }
 func newsResolveMedia(base,raw string)string {
  raw=strings.TrimSpace(raw)
+ if raw=="" {return ""}
  if strings.HasPrefix(raw,"//"){raw="https:"+raw}
  link,err:=url.Parse(raw)
  if err!=nil{return ""}
@@ -128,6 +130,24 @@ func parse24hRichArticle(page,base string) newsArticle {
    out.Blocks=append(out.Blocks,newsBlock{Kind:"video",URL:link,Poster:poster,Text:"VIDEO TỪ 24H"})
   }
  }
+ // Metadata cover is useful when the article lazily loads pictures.
+ hasPhoto,hasVideo:=false,false
+ for _,b:=range out.Blocks{
+  if b.Kind=="image"{hasPhoto=true}
+  if b.Kind=="video"{hasVideo=true}
+ }
+ if !hasPhoto{
+  if m:=newsImageMeta.FindString(page);m!=""{
+   cover:=newsResolveMedia(base,newsAttribute(m,"content"))
+   if cover!=""{out.Blocks=append(out.Blocks,newsBlock{Kind:"image",URL:cover,Text:"Ảnh minh họa"})}
+  }
+ }
+ if !hasVideo{
+  if m:=newsVideoMeta.FindString(page);m!=""{
+   link:=newsResolveMedia(base,newsAttribute(m,"content"))
+   if link!=""{out.Blocks=append(out.Blocks,newsBlock{Kind:"video",URL:link,Text:"VIDEO TỪ 24H"})}
+  }
+ }
  if len(out.Blocks)==0&&out.Excerpt!=""{
   out.Blocks=[]newsBlock{{Kind:"text",Text:out.Excerpt}}
  }
@@ -153,6 +173,9 @@ func fetchNewsPicture(client *http.Client, uri string)(*asset,error) {
  data,err:=io.ReadAll(io.LimitReader(resp.Body,4*1024*1024+1))
  if err!=nil{return nil,err}
  if len(data)>4*1024*1024{return nil,errors.New("ảnh quá lớn")}
+ cfg,_,err:=image.DecodeConfig(bytes.NewReader(data))
+ if err!=nil{return nil,err}
+ if cfg.Width<8||cfg.Height<8||cfg.Width>3000||cfg.Height>2500{return nil,errors.New("ảnh quá lớn hoặc không hỗ trợ định dạng")}
  img,_,err:=image.Decode(bytes.NewReader(data))
  if err!=nil{return nil,err}
  bounds:=img.Bounds()
