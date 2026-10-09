@@ -1,5 +1,14 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.38 — LED Studio tích hợp vào BINANCE
+
+- **Cài đặt → Điều khiển LED:** 5 hàng gồm Chọn hiệu ứng, Độ sáng, Tốc độ, Màu chính và Màu phụ. D-pad **trái giảm / phải tăng** theo tốc độ thực; tên là **TỐC ĐỘ**, không phải tốc độ nháy.
+- Giữ nguyên mã cũ của các chế độ đã lưu. Có **9 nhóm**: màu tĩnh (5 màu cũ), thở chậm, báo mức pin, chuyển sắc đôi, vòng màu, ánh sáng dịu, cầu vồng, chạy đuổi và phản hồi phím; chế độ nhấp nháy cũ vẫn khả dụng.
+- Driver TG4040 có thể giới hạn `frame_hex` ở dải đỉnh sau. Các hiệu ứng LED Studio mới **không ghi `frame_hex` liên tục**; thay vào đó, phát màu tách biệt trên mọi node `effect_rgb_hex_<zone>` mà firmware công bố, kết hợp chế độ native static 4. Vùng nào không có node sẽ không được giả lập là đã điều khiển. Firmware chỉ công bố một vùng sẽ báo lỗi, không báo thành công giả.
+- Phản hồi nút bấm được chuyển từ vòng xử lý gamepad của BINANCE sang tiến trình LED. Chế độ báo pin đọc `/sys/class/power_supply/*/capacity`; không có dữ liệu pin sẽ báo lỗi. Hai chế độ chuyển sắc đôi/ánh sáng dịu giữ màu tĩnh để giảm truy cập driver; các chế độ động dùng tốc độ giới hạn 160–700 ms.
+- Cài đặt được lưu trong `settings.json`; OTA giữ file này và chỉ kiểm tra khi bấm **Cài đặt → Cập nhật OTA**.
+- **Thận trọng:** Firmware có thể gộp nhiều bóng LED trong một node (như `lr`) nên chuyển sắc ở mức vùng, không thể giả định điều khiển riêng từng điểm ảnh trong vòng analog. Chưa thử trên máy TG4040 thật. Dừng hiệu ứng nếu xảy ra treo hoặc quá nhiệt, trở về HỆ THỐNG và khởi động lại. Gửi kết quả từ `scripts/probe-led-brickpro.sh` để hiệu chỉnh ánh xạ.
+
 ## v0.37 — Sửa vùng LED Brick Pro và hướng D-pad
 
 - Đổi nhãn **TỐC ĐỘ NHÁY** thành **TỐC ĐỘ**.
