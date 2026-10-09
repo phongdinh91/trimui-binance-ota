@@ -1,5 +1,21 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.36 — Trang con LED, hiệu ứng cầu vồng và chạy đuổi
+
+**CÀI ĐẶT → ĐIỀU KHIỂN LED → A** mở trang riêng gồm ba lựa chọn:
+
+- **CHỌN HIỆU ỨNG:** HỆ THỐNG, TẮT, màu tĩnh, NHỊP THỞ, NHẤP NHÁY, **CẦU VỒNG**, **CHẠY ĐUỔI**. D-pad trái/phải đổi hiệu ứng.
+- **ĐỘ SÁNG:** 10–60, tăng giảm 10 mỗi lần.
+- **TỐC ĐỘ NHÁY:** 5 cấp, từ RẤT NHANH đến RẤT CHẬM.
+- **Lên/xuống** chọn mục; **B** trở về CÀI ĐẶT. Các lựa chọn áp dụng thành công được lưu vào `settings.json`.
+
+**CẦU VỒNG / CHẠY ĐUỔI:** thực hiện hoạt ảnh trên **8 LED thanh trên** bằng chế độ `frame_hex`, chỉ khi firmware có đủ các file điều khiển và cho phép ghi. Để tránh kích hoạt vô ý, sau khi dùng trái/phải chọn một trong hai hiệu ứng thử nghiệm, bạn **phải bấm A xác nhận**. Ứng dụng khởi chạy một tiến trình LED tách biệt với giao diện, kiểm tra tín hiệu READY trong 3 giây; khi rời app hoặc chuyển hiệu ứng sẽ yêu cầu dừng tiến trình. Khi mở app lại, hiệu ứng thử nghiệm **không tự chạy** cho đến khi người dùng xác nhận lại.
+
+**Cảnh báo phần cứng:** driver LED trên một số firmware TrimUI Brick có lỗi *treo khi ghi `frame_hex` liên tục*. Bộ hoạt ảnh tuân theo cách khắc phục đã được cộng đồng kiểm thử (luôn chuyển `effect_enable` về 1 rồi 0 giữa mỗi lần ghi), nhưng **chưa được xác minh trên Brick Pro Stock OS của bạn**. Nếu firmware không tương thích, đừng thử lại liên tục; chuyển về HỆ THỐNG và khởi động lại máy. Hiệu ứng trên tab này là thử nghiệm, không đảm bảo hoạt động với mọi bản firmware. Bản build/kiểm thử tự động không kiểm tra được driver thật.
+
+Bố cục khác được giữ từ v0.35: **24h.com.vn trong thanh trên cùng** của KINH DOANH và HI-TECH; chữ trong CÀI ĐẶT cỡ lớn; OTA chỉ kiểm tra khi bấm trong CÀI ĐẶT.
+
+
 ## v0.35 — 24h trong thanh trên, LED mở rộng và điều chỉnh sáng/nháy
 
 - Trên **KINH DOANH** và **HI-TECH**, nguồn `24h.com.vn` được hiển thị **bên trong thanh trên cùng** bên dưới tên tab; thanh điều hướng bên dưới chỉ còn tên bốn tab.
