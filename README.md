@@ -1,5 +1,16 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.37 — Sửa vùng LED Brick Pro và hướng D-pad
+
+- Đổi nhãn **TỐC ĐỘ NHÁY** thành **TỐC ĐỘ**.
+- Chỉnh hướng điều khiển tốc độ: **D-pad PHẢI = NHANH HƠN**, **D-pad TRÁI = CHẬM HƠN**. Giữ nguyên thứ tự mức tốc độ đã lưu trong `settings.json`; không đảo ngược tốc độ cũ sau khi cập nhật.
+- Sửa hiệu ứng **CẦU VỒNG** và **CHẠY ĐUỔI**: v0.36 chỉ xuất **8 màu** cho một cụm LED. v0.37 tạo khung cho **23 vị trí trên driver Brick Pro (TG4040)** hoặc **14 vị trí trên Brick thường**, và lần lượt chạy qua toàn bộ vị trí trong hiệu ứng đuổi.
+- Trước hoạt ảnh, bật lại độ sáng cho các vùng phần cứng có node tương ứng: `max_scale`, `max_scale_f1f2`, `max_scale_lr`, `max_scale_rear`; đồng thời xóa màu nền hiệu ứng cũ ở các vùng `m`, `f1`, `f2`, `lr`, `rear`, `l`, `r` có hỗ trợ để tránh vùng bị tắt hoặc nhấp nháy khi chuyển khung.
+- Giữ cơ chế an toàn `effect_enable: 1 → 0` giữa các lần ghi `frame_hex`, phát hoạt ảnh trong tiến trình riêng, có nút xác nhận A trước khi thử và dừng tiến trình khi thoát.
+
+**Chưa thể xác nhận đủ mọi vùng LED trên phần cứng Brick Pro chỉ bằng GitHub Actions.** Kết quả cần được thử thực tế trên Stock OS TG4040; sơ đồ LED và số vị trí có thể thay đổi theo firmware. Nếu chỉ một vùng sáng hoặc thiết bị không phản hồi, ngừng thử hiệu ứng, chuyển về HỆ THỐNG và khởi động lại máy. Nếu lỗi còn, cần thông tin firmware và `/sys/class/led_anim/help` để đối chiếu bố trí LED thực tế. 
+
+
 ## v0.36 — Trang con LED, hiệu ứng cầu vồng và chạy đuổi
 
 **CÀI ĐẶT → ĐIỀU KHIỂN LED → A** mở trang riêng gồm ba lựa chọn:
