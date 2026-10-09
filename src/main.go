@@ -3422,7 +3422,7 @@ func main() {
                                 next:=settingsNextLED(settings.LEDMode,-1)
                                 if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
                                     settings.LEDMode=next
-                                    ledStatus="ĐÃ CHỌN "+ledModeNames[next]
+                                    ledStatus=ledStatusMessage(next)
                                     _=saveSettings(settings)
                                 }
                                 dirty=true
@@ -3454,7 +3454,7 @@ func main() {
                                 next:=settingsNextLED(settings.LEDMode,1)
                                 if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
                                     settings.LEDMode=next
-                                    ledStatus="ĐÃ CHỌN "+ledModeNames[next]
+                                    ledStatus=ledStatusMessage(next)
                                     _=saveSettings(settings)
                                 }
                                 dirty=true
@@ -3494,7 +3494,7 @@ func main() {
                                 next:=settingsNextLED(settings.LEDMode,1)
                                 if err:=applyBrickLED(next);err!=nil{ledStatus=err.Error()}else{
                                     settings.LEDMode=next
-                                    ledStatus="ĐÃ CHỌN "+ledModeNames[next]
+                                    ledStatus=ledStatusMessage(next)
                                     _=saveSettings(settings)
                                 }
                             case settingsAbout:
