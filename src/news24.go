@@ -179,11 +179,15 @@ func draw24hTileGrid(fb *framebuffer,page,selected int){
   fb.rect(x,y,cellW,cellH,bg)
   if selectedTile{fb.rect(x,y,5,cellH,cYellow)}
   scale:=3
-  if asciiWidth(scale,cats[i].Name)>cellW-28{scale=2}
-  if asciiWidth(scale,cats[i].Name)>cellW-28{scale=1}
-  xx:=x+13; yy:=y+max(8,(cellH-7*scale)/2)
-  drawASCII(fb,xx,yy,scale,cats[i].Name,cText)
-  drawASCII(fb,xx+1,yy,scale,cats[i].Name,cText)
+  lines:=newsWrappedLines(cats[i].Name,cellW-32,scale)
+  if len(lines)>2 {scale=2;lines=newsWrappedLines(cats[i].Name,cellW-32,scale)}
+  if len(lines)>2 {lines=lines[:2]}
+  yy:=y+max(8,(cellH-len(lines)*(7*scale+8))/2)
+  for _,line:=range lines {
+   drawASCII(fb,x+13,yy,scale,line,cText)
+   drawASCII(fb,x+14,yy,scale,line,cText)
+   yy+=7*scale+8
+  }
   small:=fmt.Sprintf("%02d/12",i+1)
   drawASCII(fb,x+cellW-asciiWidth(1,small)-10,y+8,1,small,cMuted)
  }
