@@ -2878,6 +2878,7 @@ type chartCacheEntry struct {
 }
 
 func main() {
+    if handleLEDWorkerArgs(os.Args[1:]){return}
 	fb, err := openFramebuffer()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -2910,24 +2911,54 @@ func main() {
     applyTheme(settings.ThemeLight)
     settingsSelected:=settingsOTA
     settingsAboutVisible:=false
+    ledSubmenuVisible:=false
+    ledSelected:=ledSubEffect
+    ledPendingMode:=-1
     ledStatus:=""
+    var ledWorker *ledAnimationProcess
+    // Experimental frame animations are NEVER resumed at startup without confirmation.
     if settings.LEDMode!=ledSystem {
-        if err:=applyBrickLEDConfig(settings);err!=nil{ledStatus=err.Error()}
+        if ledFrameAnimated(settings.LEDMode){
+            ledStatus="HIỆU ỨNG THỬ NGHIỆM: VÀO LED ĐỂ BẬT LẠI"
+        } else if err:=applyBrickLEDConfig(settings);err!=nil{
+            ledStatus=err.Error()
+        }
     }
-    // Apply first, save only after the device confirms success; unsupported effects keep
-    // the last working LED choice instead of claiming they are enabled.
+    stopWorker:=func()error{
+        if ledWorker==nil{return nil}
+        err:=ledWorker.stop()
+        if err==nil{ledWorker=nil}
+        return err
+    }
     changeLED:=func(mode,brightness,speed int){
         candidate:=settings
         candidate.LEDMode=mode
         candidate.LEDBrightness=brightness
         candidate.LEDSpeed=speed
-        if err:=applyBrickLEDConfig(candidate);err!=nil{
+        if err:=stopWorker();err!=nil {ledStatus=err.Error();return}
+        if ledFrameAnimated(mode){
+            worker,err:=startLEDAnimation(candidate)
+            if err!=nil{ledStatus=err.Error();return}
+            ledWorker=worker
+        }else if err:=applyBrickLEDConfig(candidate);err!=nil{
             ledStatus=err.Error()
             return
         }
         settings=candidate
         ledStatus=ledStatusMessage(mode)
         _=saveSettings(settings)
+    }
+    moveLEDEffect:=func(direction int){
+        from:=settings.LEDMode
+        if ledPendingMode>=0{from=ledPendingMode}
+        candidate:=settingsNextLED(from,direction)
+        if ledFrameAnimated(candidate){
+            ledPendingMode=candidate
+            ledStatus="A: XÁC NHẬN THỬ "+ledModeNames[candidate]
+        }else{
+            ledPendingMode=-1
+            changeLED(candidate,settings.LEDBrightness,settings.LEDSpeed)
+        }
     }
 
 	all, lastUpdated := loadCache()
@@ -3120,6 +3151,7 @@ func main() {
 	defer tick.Stop()
 
 	saveAndExit := func() {
+        _=stopWorker()
 		if !lastUpdated.IsZero() && (lastCacheSave.IsZero() || lastUpdated.After(lastCacheSave)) {
 			_ = saveCache(all, lastUpdated)
 		}
