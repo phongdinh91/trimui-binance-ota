@@ -46,7 +46,7 @@ func TestGoldFetcherUses24h(t *testing.T) {
  if err!=nil {t.Fatal(err)}
  if len(got.Quotes)!=1||!strings.EqualFold(got.Quotes[0].Name,"SJC")||got.FetchedAt.IsZero() {t.Fatalf("unexpected snapshot %+v",got)}
 }
-func TestTwoMainTabs(t *testing.T) {
- if cycleMainPage(pageSearch,1)!=pageBusiness || cycleMainPage(pageFavorites,1)!=pageBusiness || cycleMainPage(pageBusiness,1)!=pageFavorites {t.Fatal("R1 main tabs")}
- if cycleMainPage(pageSearch,-1)!=pageBusiness || cycleMainPage(pageBusiness,-1)!=pageFavorites || cycleMainPage(pageFavorites,-1)!=pageBusiness {t.Fatal("L1 main tabs")}
+func TestThreeMainTabs(t *testing.T) {
+ if cycleMainPage(pageSearch,1)!=pageBusiness || cycleMainPage(pageFavorites,1)!=pageBusiness || cycleMainPage(pageBusiness,1)!=pageHitech || cycleMainPage(pageHitech,1)!=pageFavorites {t.Fatal("R1 main tabs")}
+ if cycleMainPage(pageSearch,-1)!=pageHitech || cycleMainPage(pageBusiness,-1)!=pageFavorites || cycleMainPage(pageFavorites,-1)!=pageHitech {t.Fatal("L1 main tabs")}
 }
