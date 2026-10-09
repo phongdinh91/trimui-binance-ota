@@ -40,7 +40,7 @@ func TestOTAManualOnlyDesign(t *testing.T){
 
 func TestLEDBrightnessAndSpeedBounds(t *testing.T){
  if settingsNextBrightness(40,1)!=50 || settingsNextBrightness(10,-1)!=10 || settingsNextBrightness(60,1)!=60 {t.Fatal("Brightness bounds")}
- if settingsNextSpeed(3,-1)!=2 || settingsNextSpeed(1,-1)!=1 || settingsNextSpeed(5,1)!=5 {t.Fatal("Speed bounds")}
+ if settingsNextSpeed(3,-1)!=4 || settingsNextSpeed(3,1)!=2 || settingsNextSpeed(1,1)!=1 || settingsNextSpeed(5,-1)!=5 {t.Fatal("Right must increase LED speed; left must decrease")}
  for i:=1;i<=5;i++{
   if ledDurationMS[i]<150||ledDurationMS[i]>1800 {t.Fatalf("unexpected duration %d",ledDurationMS[i])}
   if i>1 && ledDurationMS[i]<=ledDurationMS[i-1] {t.Fatal("Speed durations not ordered")}
