@@ -1,5 +1,16 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.33 — đồng bộ giao diện, đọc bài viết có ảnh và video
+
+- **Phiên bản:** chữ `v0.33` xuất hiện ở góc dưới bên phải, màu và cỡ nhất quán ở các tab; không còn cạnh tiêu đề BINANCE.
+- **Thanh trên:** BINANCE, KINH DOANH và HI-TECH dùng chung font, cỡ chữ, màu chữ, ngày và giờ; đồng hồ tự cập nhật khi sang phút mới. Chỉ BINANCE hiển thị thêm trạng thái TRỰC TUYẾN/MẤT MẠNG.
+- **Thanh chú thích:** các nhóm nút A, B, X, Y, START, SELECT... được chia khoảng đều nhau trên toàn chiều ngang. Kể cả màn biểu đồ và trình đọc tin.
+- **Ô danh mục:** cỡ chữ lớn, in đậm, tên dài được ngắt tối đa hai dòng thay vì thu quá nhỏ.
+- **Bài viết 24h:** cố gắng tải các đoạn nội dung từ phần thân bài (không chỉ meta description), có cuộn bằng lên/xuống, tiêu đề 3x đậm và ảnh JPG/PNG/GIF hiển thị trực tiếp từ nguồn 24h. Nếu nguồn trả về HTML giới hạn, trang đổi cấu trúc hoặc ảnh dùng định dạng khác, giao diện sẽ hiện thông báo thay vì tự tạo nội dung.
+- **Video:** nhận diện video nhúng/MP4/HLS và hiển thị ảnh xem trước nếu nguồn cung cấp. Khi trỏ tới đoạn video và bấm A, có thể mở luồng MP4/HLS bằng MPV **nếu máy có trình phát MPV**. TrimUI Stock OS không được bảo đảm tích hợp MPV và phần lớn video nhúng cần trình duyệt nên có thể **chỉ xem được ảnh xem trước**. Ứng dụng nêu rõ lý do nếu không thể phát, không báo phát thành công giả.
+- **Kiểm thử:** bộ parser tin, ảnh/video, bộ chú thích nút và build Linux ARM64 qua GitHub Actions. Vẫn cần thử giao diện và nội dung 24h trên Brick Pro thật.
+
+
 ## Bản v0.32 — BINANCE, KINH DOANH, HI-TECH
 
 - Có **3 tab chính**: BINANCE → KINH DOANH → HI-TECH. Chuyển bằng **L1/R1**.
