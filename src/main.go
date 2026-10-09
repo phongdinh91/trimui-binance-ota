@@ -2595,8 +2595,8 @@ func renderDetail(fb *framebuffer, a uiAssets, t ticker, pts []chartPoint, chart
 	renderMACDPanel(fb, mainX, mainY+mainH+volH+8, mainW, macdH, pts)
 
 	fb.rect(0, fb.h-footerH, fb.w, footerH, color{14, 15, 20})
-	hint := "B: QUAY LẠI   Y: KHUNG TG   SELECT: GẮN SAO   MENU: THOÁT"
-	drawASCII(fb, margin, fb.h-footerH+14, 1, hint, cMuted)
+    drawEvenFooterHints(fb,"B: QUAY LẠI  Y: KHUNG TG  SELECT: GẮN SAO  MENU: THOÁT",fb.h-footerH+14)
+    drawASCII(fb,fb.w-margin-asciiWidth(1,appVersion),fb.h-20,1,appVersion,cMuted)
 }
 
 func renderTradingMainChart(fb *framebuffer, x, y, w, h int, pts []chartPoint, currentPrice float64, loading bool, errMsg, rangeLabel string) {
