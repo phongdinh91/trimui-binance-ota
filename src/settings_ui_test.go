@@ -61,7 +61,10 @@ func TestLEDSettingsNormalizationDefaults(t *testing.T){
  s=normalizeSettings(settingsFile{LEDBrightness:100,LEDSpeed:-1})
  if s.LEDBrightness!=ledBrightnessDefault||s.LEDSpeed!=ledSpeedDefault {t.Fatal("Out of range controls not normalized")}
 }
-func TestSettingsHasNewRows(t *testing.T){
+func TestLEDSubmenuRows(t *testing.T){
  s:=normalizeSettings(settingsFile{})
- if settingsItemCount!=6 || settingsBrightness==settingsSpeed || settingsValue(s,settingsBrightness)=="" || settingsValue(s,settingsSpeed)=="" {t.Fatal("Missing LED brightness/speed settings")}
+ if settingsItemCount!=4 || ledSubItemCount!=3 || ledSubEffect==ledSubBrightness || ledSubBrightness==ledSubSpeed {
+  t.Fatal("LED settings must be nested under one main Settings row")
+ }
+ if settingsValue(s,settingsLED)=="" || settingsValue(s,settingsAbout)==""{t.Fatal("Missing Settings labels")}
 }
