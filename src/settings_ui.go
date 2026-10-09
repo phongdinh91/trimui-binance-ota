@@ -129,6 +129,7 @@ func applyBrickLEDConfig(s settingsFile)error{
  if s.LEDMode<0||s.LEDMode>=ledModeCount{return errors.New("chế độ LED không hợp lệ")}
  if s.LEDBrightness<ledBrightnessMin||s.LEDBrightness>ledBrightnessMax {return errors.New("độ sáng LED không hợp lệ")}
  if s.LEDSpeed<1||s.LEDSpeed>ledSpeedLevels{return errors.New("tốc độ LED không hợp lệ")}
+ if ledFrameAnimated(s.LEDMode){return checkLEDFrameSupport()}
  for _,node:=range []string{"effect_enable","max_scale"}{
   if _,err:=os.Stat(ledDriverPath(node));err!=nil{return fmt.Errorf("Stock OS không có driver LED (%s)",node)}
  }
@@ -271,6 +272,7 @@ func drawLEDSubmenu(fb *framebuffer,s settingsFile,selected int,status string,pe
   if i==selected{fb.rect(margin,y,6,rowH,cYellow)}
   label:="CHỌN HIỆU ỨNG"
   subtitle:=ledModeNames[s.LEDMode]
+  if i==ledSubEffect&&pendingMode>=0{subtitle=ledModeNames[pendingMode]+" (A: XÁC NHẬN)"}
   if i==ledSubBrightness{label="ĐỘ SÁNG";subtitle=fmt.Sprintf("%d / %d",s.LEDBrightness,ledBrightnessMax)}
   if i==ledSubSpeed{label="TỐC ĐỘ NHÁY";subtitle=ledSpeedNames[s.LEDSpeed]}
   x:=margin+20
