@@ -1114,6 +1114,8 @@ type settingsFile struct {
 	FavoritesOnly bool `json:"favoritesOnly"`
 	ChartRange    int  `json:"chartRange"`
 	RefreshIndex  int  `json:"refreshIndex"`
+    ThemeLight    bool `json:"themeLight"`
+    LEDMode       int  `json:"ledMode"`
 }
 
 func normalizeSettings(s settingsFile) settingsFile {
@@ -1126,6 +1128,7 @@ func normalizeSettings(s settingsFile) settingsFile {
 	if s.RefreshIndex < 0 || s.RefreshIndex >= len(refreshOptions) {
 		s.RefreshIndex = defaultRefreshIndex
 	}
+    if s.LEDMode<0 || s.LEDMode>=ledModeCount{s.LEDMode=ledSystem}
 	return s
 }
 
@@ -1740,6 +1743,7 @@ const (
 	pageSearch    = 1
 	pageBusiness  = 2
 	pageHitech    = 3
+	pageSettings  = 4
 )
 
 func bottomTabsHeight(fb *framebuffer) int {
@@ -2894,6 +2898,10 @@ func main() {
 
 	favorites := loadFavorites()
 	settings := loadSettings()
+    applyTheme(settings.ThemeLight)
+    settingsSelected:=settingsOTA
+    settingsAboutVisible:=false
+    ledStatus:=""
 	all, lastUpdated := loadCache()
 	stale := len(all) > 0
 	lastCacheSave := lastUpdated
