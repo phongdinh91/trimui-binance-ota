@@ -91,12 +91,18 @@ func applyBrickLED(mode int)error{
   id,ok:=ledBreathEffectID(string(effects))
   if !ok{return errors.New("firmware không có hiệu ứng NHỊP THỞ tương thích")}
   if err:=writeLEDNode("max_scale","50");err!=nil{return err}
+ for _,node:=range []string{"max_scale_lr","max_scale_f1f2","max_scale_rear"}{
+  if err:=writeLEDOptional(node,"50");err!=nil{return err}
+ }
   if err:=writeLEDNode("effect_rgb_hex_m",ledModeColors[mode]+" ");err!=nil{return err}
   if err:=writeLEDNode("effect_m",id);err!=nil{return err}
   if err:=writeLEDOptional("effect_cycles_m","-1");err!=nil{return err}
   return writeLEDNode("effect_enable","1")
  }
  if err:=writeLEDNode("max_scale","50");err!=nil{return err}
+ for _,node:=range []string{"max_scale_lr","max_scale_f1f2","max_scale_rear"}{
+  if err:=writeLEDOptional(node,"50");err!=nil{return err}
+ }
  if err:=writeLEDNode("effect_rgb_hex_m",ledModeColors[mode]+" ");err!=nil{return err}
  if err:=writeLEDNode("effect_m","4");err!=nil{return err}
  if err:=writeLEDOptional("effect_cycles_m","-1");err!=nil{return err}
@@ -115,6 +121,10 @@ const (
  settingsAbout=3
  settingsItemCount=4
 )
+func ledStatusMessage(mode int)string{
+ if mode==ledSystem{return "HỆ THỐNG: KHỞI ĐỘNG LẠI ĐỂ KHÔI PHỤC"}
+ return "ĐÃ CHỌN "+ledModeNames[mode]
+}
 func settingsValue(s settingsFile,idx int)string{
  switch idx {
  case settingsOTA:return "BẤM A ĐỂ KIỂM TRA"
@@ -153,7 +163,7 @@ func drawAppSettings(fb *framebuffer,s settingsFile,selection int,checkingOTA bo
   drawASCII(fb,margin+20,y+14,2,label,cText)
   caption:=settingsValue(s,i)
   if i==settingsOTA&&checkingOTA{caption="ĐANG KIỂM TRA GITHUB..."}
-  if i==settingsLED&&ledStatus!=""{caption=cutNews(ledStatus,70)}
+  if i==settingsLED&&ledStatus!=""{caption=cutNews(settingsValue(s,i)+" - "+ledStatus,62)}
   drawASCII(fb,margin+20,y+49,1,caption,cMuted)
   if i==settingsTheme{
    drawSlideToggle(fb,fb.w-margin-120,y+19,s.ThemeLight)
