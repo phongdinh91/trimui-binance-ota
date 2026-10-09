@@ -128,17 +128,15 @@ func fetchGold24H(client *http.Client)(goldSnapshot,error){
 func renderBusiness(fb *framebuffer,snap goldSnapshot,sel int,loading bool,errMsg string){
  fb.fill(cBg)
  margin:=max(18,fb.w/50)
- headerH:=max(112,fb.h*15/100)
+ headerH:=drawAppTopBar(fb,pageBusiness)
  footerH:=bottomTabsHeight(fb)
- fb.rect(0,0,fb.w,headerH,cPanel)
- drawASCII(fb,margin,12,3,"KINH DOANH",cYellow)
- drawASCII(fb,margin,53,2,"GIÁ VÀNG - 24H.COM.VN",cText)
+ drawASCII(fb,margin,headerH+8,3,"GIÁ VÀNG - 24H.COM.VN",cText)
  status,sc:="DỮ LIỆU 24H",cGreen
  if loading {status,sc="ĐANG CẬP NHẬT...",cMuted
  }else if errMsg!="" {status,sc="LỖI NGUỒN 24H",cRed
  }else if snap.FetchedAt.IsZero() {status,sc="CHƯA CÓ DỮ LIỆU",cMuted
  }else if time.Since(snap.FetchedAt)>20*time.Minute {status,sc="DỮ LIỆU CŨ",cRed}
- drawASCII(fb,margin,79,1,status,sc)
+ drawASCII(fb,margin,headerH+44,1,status,sc)
  if len(snap.Quotes)==0 {
   msg:="CHƯA TẢI ĐƯỢC GIÁ VÀNG"
   drawASCII(fb,fb.w/2-asciiWidth(2,msg)/2,headerH+100,2,msg,cMuted)
@@ -146,7 +144,7 @@ func renderBusiness(fb *framebuffer,snap goldSnapshot,sel int,loading bool,errMs
   drawBottomTabs(fb,pageBusiness,"L1/R1: ĐỔI TAB  X: TẢI LẠI")
   return
  }
- y:=headerH+12
+ y:=headerH+66
  if snap.SourceUpdate!="" {drawASCII(fb,margin,y,1,"NGUỒN CẬP NHẬT: "+snap.SourceUpdate,cMuted)
  }else {drawASCII(fb,margin,y,1,"GIỜ TẢI: "+snap.FetchedAt.Format("15:04 02/01/2006"),cMuted)}
  if errMsg!="" {drawASCII(fb,margin,y+18,1,"ĐANG HIỂN THỊ GIÁ ĐÃ TẢI TRƯỚC ĐÓ",cRed)}
