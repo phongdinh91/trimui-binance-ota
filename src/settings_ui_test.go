@@ -63,7 +63,7 @@ func TestLEDSettingsNormalizationDefaults(t *testing.T){
 }
 func TestLEDSubmenuRows(t *testing.T){
  s:=normalizeSettings(settingsFile{})
- if settingsItemCount!=4 || ledSubItemCount!=3 || ledSubEffect==ledSubBrightness || ledSubBrightness==ledSubSpeed {
+ if settingsItemCount!=4 || ledSubItemCount!=5 || ledSubEffect==ledSubBrightness || ledSubBrightness==ledSubSpeed {
   t.Fatal("LED settings must be nested under one main Settings row")
  }
  if settingsValue(s,settingsLED)=="" || settingsValue(s,settingsAbout)==""{t.Fatal("Missing Settings labels")}
