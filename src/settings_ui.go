@@ -76,7 +76,8 @@ func settingsNextBrightness(current,direction int)int{
  return value
 }
 func settingsNextSpeed(current,direction int)int{
- value:=current+direction
+ // Speed level 1 is fastest; RIGHT must increase physical speed.
+ value:=current-direction
  if value<1{return 1}
  if value>ledSpeedLevels{return ledSpeedLevels}
  return value
@@ -274,7 +275,7 @@ func drawLEDSubmenu(fb *framebuffer,s settingsFile,selected int,status string,pe
   subtitle:=ledModeNames[s.LEDMode]
   if i==ledSubEffect&&pendingMode>=0{subtitle=ledModeNames[pendingMode]+" (A: XÁC NHẬN)"}
   if i==ledSubBrightness{label="ĐỘ SÁNG";subtitle=fmt.Sprintf("%d / %d",s.LEDBrightness,ledBrightnessMax)}
-  if i==ledSubSpeed{label="TỐC ĐỘ NHÁY";subtitle=ledSpeedNames[s.LEDSpeed]}
+  if i==ledSubSpeed{label="TỐC ĐỘ";subtitle=ledSpeedNames[s.LEDSpeed]}
   x:=margin+20
   drawASCII(fb,x,y+11,3,label,cText)
   drawASCII(fb,x+1,y+11,3,label,cText)
