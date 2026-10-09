@@ -3080,6 +3080,7 @@ func main() {
 	doPairFetch()
 	doOTACheck()
 	nextFetch := time.Now().Add(refreshEvery)
+    lastHeaderMinute:=time.Now().Unix()/60
 	tick := time.NewTicker(16 * time.Millisecond)
 	defer tick.Stop()
 
@@ -3218,6 +3219,7 @@ func main() {
 
 		case <-tick.C:
 			now := time.Now()
+            if minute:=now.Unix()/60;minute!=lastHeaderMinute{lastHeaderMinute=minute;dirty=true}
 			if !detail && page == pageSearch && !now.Before(nextCursorBlink) {
 				cursorVisible = !cursorVisible
 				nextCursorBlink = now.Add(500 * time.Millisecond)
