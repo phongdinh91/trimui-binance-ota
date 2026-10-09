@@ -3569,6 +3569,7 @@ func main() {
 						refreshSuggestions()
 						dirty=true
 					}
+				}
 
 			}
 
