@@ -27,7 +27,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.32"
+	appVersion          = "v0.33"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
