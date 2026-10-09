@@ -33,7 +33,7 @@ func ledAnimationPixelCount() int {
  for _,file:=range []string{"/proc/device-tree/model","/proc/device-tree/compatible"}{
   model,e:=os.ReadFile(file)
   if e==nil {
-   lower:=strings.ToLower(strings.ReplaceAll(string(model),"\\x00"," "))
+   lower:=strings.ToLower(strings.ReplaceAll(string(model),"\x00"," "))
    if strings.Contains(lower,"tg4040")||strings.Contains(lower,"brick pro")||strings.Contains(lower,"brickpro"){
     return ledBrickProPixels
    }
