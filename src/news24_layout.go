@@ -24,7 +24,7 @@ func drawAppTopBar(fb *framebuffer, page int) int {
 
 func footerParts(hint string) []string {
  // Each button label receives an independent equal-width slot.
- keys:=map[string]bool{"A:":true,"B:":true,"X:":true,"Y:":true,"START:":true,"SELECT:":true,"L1/R1:":true,"D-PAD:":true}
+ keys:=map[string]bool{"A:":true,"B:":true,"X:":true,"Y:":true,"START:":true,"SELECT:":true,"L1/R1:":true,"D-PAD:":true,"MENU:":true,"LÊN/XUỐNG:":true}
  words:=strings.Fields(hint)
  var parts []string
  for _,word:=range words{
