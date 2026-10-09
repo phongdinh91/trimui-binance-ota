@@ -2933,6 +2933,22 @@ func main() {
  var goldLastAttempt time.Time
  var goldFetching atomic.Bool
  goldCh:=make(chan goldResult,1)
+ newsCategorySel:=0
+ newsArticleSel:=0
+ newsView:=0 // grid, list, preview, gold
+ newsItems:=[]newsArticle(nil)
+ newsArticleActive:=newsArticle{}
+ newsLastFetch:=time.Time{}
+ newsLoading:=false
+ newsErr:=""
+ newsURL:=""
+ newsKind:=""
+ newsCh:=make(chan news24Result,8)
+ doNewsFetch:=func(address,kind string) {
+  if newsLoading && address==newsURL && kind==newsKind{return}
+  newsURL=address;newsKind=kind;newsLoading=true;newsErr=""
+  go func(){newsCh<-fetch24hNews(client,address,kind)}()
+ }
  doGoldFetch:=func(){
   if goldFetching.Swap(true){return}
   goldLastAttempt=time.Now()
@@ -2943,7 +2959,7 @@ func main() {
   }()
  }
 
-	// v0.13: màn chi tiết dùng B để quay lại; D-pad không đổi cặp coin.
+	// Search is a temporary view within BINANCE; START always returns to its grid.
 	page := pageFavorites
 	favoriteSel := 0
 	query := ""
@@ -3138,6 +3154,23 @@ func main() {
 			}
 			dirty = true
 
+		case nr := <-newsCh:
+            if nr.Key==newsURL && nr.Kind==newsKind {
+                newsLoading=false
+                newsLastFetch=nr.At
+                if nr.Err!=nil {newsErr=nr.Err.Error()} else {
+                    newsErr=""
+                    if nr.Kind=="list" {
+                       newsItems=nr.Items
+                       newsArticleSel=0
+                    } else {
+                       if nr.Article.Title!="" {newsArticleActive.Title=nr.Article.Title}
+                       newsArticleActive.Excerpt=nr.Article.Excerpt
+                    }
+                }
+                dirty=true
+            }
+
 		case gr := <-goldCh:
    if gr.Err!=nil {goldErr=gr.Err.Error()} else {
      gold=gr.Snapshot
@@ -3185,7 +3218,7 @@ func main() {
 				nextCursorBlink = now.Add(500 * time.Millisecond)
 				dirty = true
 			}
-			if !detail && page==pageBusiness && now.Sub(goldLastAttempt)>=goldRefreshInterval {doGoldFetch()}
+			if !detail && page==pageBusiness && newsView==3 && now.Sub(goldLastAttempt)>=goldRefreshInterval {doGoldFetch()}
 			if now.After(nextFetch) {
 				doFetch()
 				nextFetch = time.Now().Add(refreshEvery)
