@@ -30,7 +30,7 @@ func ledStudioAvailableZones() []string {
 	var zones []string
 	for _, zone := range ledStudioZones {
 		// Firmware may offer a combined LR channel or independent L/R.
-		if zone == "lr" && (ledNodeExists("effect_rgb_hex_l") || ledNodeExists("effect_rgb_hex_r")) {
+		if zone == "lr" && ledNodeExists("effect_rgb_hex_l") && ledNodeExists("effect_rgb_hex_r") {
 			continue
 		}
 		if ledNodeExists("effect_"+zone) && ledNodeExists("effect_rgb_hex_"+zone) {
@@ -114,7 +114,15 @@ func ledStudioColor(mode,phase,index,count,battery,actionAge int, primary,second
 func ledStudioFrame(mode,phase,battery,actionAge int, zones []string, primary,secondary string) map[string]string {
 	colors:=make(map[string]string,len(zones))
 	for i,zone:=range zones {
-		colors[zone]=ledStudioColor(mode,phase,i,len(zones),battery,actionAge,primary,secondary)
+		if mode==ledDualTone {
+            switch zone {
+            case "l","f1": colors[zone]=primary
+            case "r","f2": colors[zone]=secondary
+            default: colors[zone]=ledBlend(primary,secondary,0.5)
+            }
+        } else {
+            colors[zone]=ledStudioColor(mode,phase,i,len(zones),battery,actionAge,primary,secondary)
+        }
 	}
 	return colors
 }
@@ -167,6 +175,7 @@ func ledStudioRun(mode,brightness,speed,colorA,colorB int, feedback interface{ W
 	render:=func()error{return ledStudioWriteFrame(ledStudioFrame(mode,phase,battery,actionAge,zones,primary,secondary),zones)}
 	if err=render();err!=nil{return fail(err)}
 	_,_=fmt.Fprintln(feedback,"READY")
+    if mode==ledDualTone||mode==ledAmbient {<-stop;return nil}
 	ticker:=time.NewTicker(ledAnimationDelay(speed))
 	defer ticker.Stop()
 	for {
