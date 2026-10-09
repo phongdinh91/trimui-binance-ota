@@ -1764,7 +1764,7 @@ func drawBottomTabs(fb *framebuffer, active int, hint string) {
   x:=center-asciiWidth(2,t.label)/2
   clr:=cMuted
   activeTab:=active==t.page || (active==pageSearch&&t.page==pageFavorites)
-  if activeTab {clr=cYellow;fb.rect(fb.w*i/4+7,tabY+26,fb.w/4-14,4,cYellow)}
+  if activeTab {clr=cYellow;fb.rect(fb.w*i/4+7,tabY+47,fb.w/4-14,4,cYellow)}
   drawASCII(fb,x,tabY,2,t.label,clr)
   if i==1 || i==2 {source:="24h.com.vn";drawASCII(fb,center-asciiWidth(1,source)/2,tabY+26,1,source,cMuted)}
  }
@@ -2599,7 +2599,13 @@ func renderDetail(fb *framebuffer, a uiAssets, t ticker, pts []chartPoint, chart
 
 	fb.rect(0, fb.h-footerH, fb.w, footerH, cPanel)
     drawEvenFooterHints(fb,"B: QUAY LẠI  Y: KHUNG TG  SELECT: GẮN SAO  MENU: THOÁT",fb.h-footerH+14)
-    drawASCII(fb,fb.w-margin-asciiWidth(1,appVersion),fb.h-20,1,appVersion,cMuted)
+    // Detail view retains its price/chart header but shares date/time/version alignment.
+    now:=time.Now()
+    clock:=now.Format("15:04")
+    date:=weekdayVI(now)+" "+now.Format("02/01/2006")
+    drawASCII(fb,fb.w-asciiWidth(4,clock)-margin,8,4,clock,cText)
+    drawASCII(fb,fb.w-asciiWidth(2,date)-margin,48,2,date,cMuted)
+    drawASCII(fb,fb.w-asciiWidth(1,appVersion)-margin,80,1,appVersion,cMuted)
 }
 
 func renderTradingMainChart(fb *framebuffer, x, y, w, h int, pts []chartPoint, currentPrice float64, loading bool, errMsg, rangeLabel string) {
