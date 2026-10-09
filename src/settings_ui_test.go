@@ -11,8 +11,8 @@ func TestSettingsDefaultAndNormalization(t *testing.T){
  if !s.ThemeLight {t.Fatal("light theme must be preserved")}
 }
 func TestSettingsLEDNavigation(t *testing.T){
- if settingsNextLED(ledSystem,-1)!=ledGreen {t.Fatal("LED backwards wrap")}
- if settingsNextLED(ledGreen,1)!=ledSystem {t.Fatal("LED forward wrap")}
+ if settingsNextLED(ledSystem,-1)!=ledAction {t.Fatal("LED backwards wrap")}
+ if settingsNextLED(ledGreen,1)!=ledBattery {t.Fatal("LED forward wrap")}
  if settingsNextLED(ledOff,1)!=ledGold {t.Fatal("LED next")}
 }
 func TestSettingsThemeColors(t *testing.T){
