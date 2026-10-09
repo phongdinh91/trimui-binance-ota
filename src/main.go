@@ -3583,9 +3583,19 @@ func main() {
 						page = detailFrom
 						dirty = true
 					}
-				} else if page == pageBusiness {
-     renderBusiness(fb,gold,goldSel,goldFetching.Load(),goldErr)
-    } else if page == pageFavorites {
+				} else if page==pageBusiness || page==pageHitech {
+                    cat,ok:=newsCategoryFor(page,newsCategorySel)
+                    switch newsView {
+                    case 0:
+                        draw24hTileGrid(fb,page,newsCategorySel)
+                    case 1:
+                        if ok {draw24hNewsList(fb,page,cat,newsItems,newsArticleSel,newsLoading,newsErr,newsLastFetch)}
+                    case 2:
+                        draw24hArticlePreview(fb,page,newsArticleActive,newsLoading,newsErr)
+                    case 3:
+                        if page==pageBusiness {renderBusiness(fb,gold,goldSel,goldFetching.Load(),goldErr)} else {draw24hTileGrid(fb,page,newsCategorySel)}
+                    }
+                } else if page == pageFavorites {
 					fav := favoriteTickers(all, favorites)
 					if favoriteSel >= len(fav) {
 						favoriteSel = max(0, len(fav)-1)
