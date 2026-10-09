@@ -1750,20 +1750,22 @@ func drawBottomTabs(fb *framebuffer, active int, hint string) {
  footerH:=bottomTabsHeight(fb)
  y:=fb.h-footerH
  fb.rect(0,y,fb.w,footerH,cPanel)
- margin:=max(18,fb.w/50)
- if hint!="" {drawASCIIRatio(fb,margin,y+10,3,2,hint,cMuted)}
+ if hint!="" {drawEvenFooterHints(fb,hint,y+11)}
  tabs:=[]struct{page int;label string}{
   {pageFavorites,"BINANCE"}, {pageBusiness,"KINH DOANH"}, {pageHitech,"HI-TECH"},
  }
- tabY:=y+58
+ tabY:=y+55
  for i,t:=range tabs {
   center:=fb.w*(i*2+1)/6
   x:=center-asciiWidth(2,t.label)/2
   clr:=cMuted
   activeTab:=active==t.page || (active==pageSearch&&t.page==pageFavorites)
-  if activeTab {clr=cYellow;fb.rect(fb.w*i/3+7,tabY+24,fb.w/3-14,4,cYellow)}
+  if activeTab {clr=cYellow;fb.rect(fb.w*i/3+7,tabY+26,fb.w/3-14,4,cYellow)}
   drawASCII(fb,x,tabY,2,t.label,clr)
  }
+ // Version is in the lower-right corner, same size and color in every tab.
+ margin:=max(14,fb.w/50)
+ drawASCII(fb,fb.w-margin-asciiWidth(1,appVersion),fb.h-20,1,appVersion,cMuted)
 }
 
 func cycleMainPage(page,dir int)int {
@@ -1914,45 +1916,16 @@ func searchSuggestionWindow(total, sel, visible int) (start, end int) {
 }
 
 func renderHeader(fb *framebuffer, active int, updated time.Time, stale bool, loading bool, errMsg string) int {
-	_ = active
-	margin := max(18, fb.w/50)
-	// Thu nhỏ thanh trên để nhường không gian cho nội dung.
-	headerH := max(112, fb.h*15/100)
-	fb.rect(0, 0, fb.w, headerH, cPanel)
-
-	// Version đặt sát bên phải chữ E và cao hơn để không bị chồng lên chữ.
-	titleY := 10
-	drawASCIIRatio(fb, margin, titleY, 9, 2, "BINANCE", cYellow)
-	verX := margin + asciiWidthRatio(9, 2, "BINANCE") + 5
-	drawASCII(fb, verX, titleY+18, 1, appVersion, cMuted)
-	now := time.Now()
-	dateTxt := weekdayVI(now) + " " + now.Format("02/01/2006")
-	timeTxt := now.Format("15:04")
-	// Giảm 50% kích thước đồng hồ/ngày so với v0.14; thêm thứ T2..T7/CN.
-	drawASCII(fb, fb.w-asciiWidth(4, timeTxt)-margin, 8, 4, timeTxt, cText)
-	drawASCII(fb, fb.w-asciiWidth(2, dateTxt)-margin, 48, 2, dateTxt, cMuted)
-
-	status := "ĐANG TẢI"
-	sc := cMuted
-	if !updated.IsZero() {
-		if stale {
-			status = "DỮ LIỆU CŨ"
-			sc = cRed
-		} else {
-			status = "TRỰC TUYẾN"
-			sc = cGreen
-		}
-	}
-	if errMsg != "" {
-		status = "MẤT MẠNG"
-		sc = cRed
-	} else if loading {
-		status = "ĐANG CẬP NHẬT"
-		sc = cMuted
-	}
-	// Đưa trạng thái lên ngay dưới/chân chữ BINANCE.
-	drawASCII(fb, margin, 68, 2, status, sc)
-	return headerH
+ headerH:=drawAppTopBar(fb,active)
+ if active==pageBusiness||active==pageHitech{return headerH}
+ status:="ĐANG TẢI"
+ sc:=cMuted
+ if !updated.IsZero(){
+  if stale {status="DỮ LIỆU CŨ";sc=cRed}else{status="TRỰC TUYẾN";sc=cGreen}
+ }
+ if errMsg!=""{status="MẤT MẠNG";sc=cRed}else if loading{status="ĐANG CẬP NHẬT";sc=cMuted}
+ drawASCII(fb,max(18,fb.w/50),68,2,status,sc)
+ return headerH
 }
 
 func renderExitConfirm(fb *framebuffer, choice int) {
