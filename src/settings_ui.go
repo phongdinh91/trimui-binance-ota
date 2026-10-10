@@ -174,6 +174,7 @@ func applyBrickLEDConfig(s settingsFile)error{
   // Native driver animation duration (milliseconds); faster means shorter duration.
   if err:=writeLEDNode("effect_duration_m",duration);err!=nil{return err}
  }
+ if nativeID=="4" {if err:=writeLEDNode("effect_m","0");err!=nil{return err}}
  if err:=writeLEDNode("effect_m",nativeID);err!=nil{return err}
  if err:=writeLEDOptional("effect_cycles_m","-1");err!=nil{return err}
  // Additional LED zones use native effect IDs only when those zone nodes exist.
@@ -182,6 +183,7 @@ func applyBrickLEDConfig(s settingsFile)error{
   if ledDynamic(s.LEDMode) {
    if err:=writeLEDOptional("effect_duration_"+zone,strconv.Itoa(ledDurationMS[s.LEDSpeed]));err!=nil{return err}
   }
+  if nativeID=="4" {if err:=writeLEDOptional("effect_"+zone,"0");err!=nil{return err}}
   if err:=writeLEDOptional("effect_"+zone,nativeID);err!=nil{return err}
   if err:=writeLEDOptional("effect_cycles_"+zone,"-1");err!=nil{return err}
  }
