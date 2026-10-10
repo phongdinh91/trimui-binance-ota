@@ -141,25 +141,42 @@ func ledBatteryPercent() (int,error) {
 	}
 	return -1,errors.New("không đọc được mức pin từ /sys/class/power_supply")
 }
+// The TG4040 driver has two gates: "enable" is the hardware master,
+// while "effect_enable" selects the zone-based engine. The v0.38 code
+// never enabled the master. On compatible firmware, setting effect_*
+// AFTER writing its colour is also necessary to trigger a visible change.
 func ledStudioPrepare(brightness int,zones []string) error {
+	if ledNodeExists("enable") {
+		if err:=writeLEDNode("enable","1");err!=nil{
+			return fmt.Errorf("không bật được công tắc LED tổng: %w",err)
+		}
+	}
+	if err:=writeLEDNode("effect_enable","1");err!=nil{return err}
 	for _,node:=range []string{"max_scale","max_scale_lr","max_scale_f1f2","max_scale_rear"} {
 		if err:=writeLEDOptional(node,strconv.Itoa(brightness));err!=nil{return err}
 	}
-	// Effect 4 is the firmware's native static-colour effect. Animating each
-	// zone's colour avoids routing all animation frames to the rear strip.
-	for _,zone:=range zones {
-		if err:=writeLEDNode("effect_"+zone,"4");err!=nil{return err}
-	}
-	return writeLEDNode("effect_enable","1")
+	return nil
+}
+
+// Setting colour alone is not enough on some Stock OS revisions.
+// Re-arm the native static effect AFTER the new colour is written.
+// No frame_hex writes (which can deadlock on some firmware).
+func ledStudioApplyZone(zone,color string,write func(string,string)error) error {
+	if len(color)!=6{return fmt.Errorf("màu LED vùng %s không hợp lệ",zone)}
+	if err:=write("effect_rgb_hex_"+zone,color+" ");err!=nil{return err}
+	if err:=write("effect_"+zone,"0");err!=nil{return err}
+	if err:=write("effect_"+zone,"4");err!=nil{return err}
+	return nil
 }
 func ledStudioWriteFrame(frame map[string]string,zones []string)error{
 	for _,zone:=range zones{
 		color,ok:=frame[zone]
-		if !ok||len(color)!=6{return fmt.Errorf("khung LED thiếu vùng %s",zone)}
-		if err:=writeLEDNode("effect_rgb_hex_"+zone,color+" ");err!=nil{return err}
+		if !ok{return fmt.Errorf("khung LED thiếu vùng %s",zone)}
+		if err:=ledStudioApplyZone(zone,color,writeLEDNode);err!=nil{return err}
 	}
 	return nil
 }
+
 func ledStudioRun(mode,brightness,speed,colorA,colorB int, feedback interface{ Write([]byte)(int,error) }, actions <-chan struct{}, stop <-chan os.Signal) error {
 	fail:=func(err error)error{_,_=fmt.Fprintln(feedback,"ERROR:",err);return err}
 	if speed<1||speed>ledSpeedLevels{return fail(errors.New("tốc độ LED không hợp lệ"))}
@@ -172,7 +189,17 @@ func ledStudioRun(mode,brightness,speed,colorA,colorB int, feedback interface{ W
 	phase,battery,actionAge:=0,-1,100
 	if mode==ledBattery {battery,_=ledBatteryPercent()}
 	primary,secondary:=ledPaletteAt(colorA),ledPaletteAt(colorB)
-	render:=func()error{return ledStudioWriteFrame(ledStudioFrame(mode,phase,battery,actionAge,zones,primary,secondary),zones)}
+	last:=make(map[string]string,len(zones))
+	render:=func()error{
+		frame:=ledStudioFrame(mode,phase,battery,actionAge,zones,primary,secondary)
+		for _,zone:=range zones {
+			color:=frame[zone]
+			if last[zone]==color{continue}
+			if err:=ledStudioApplyZone(zone,color,writeLEDNode);err!=nil{return err}
+			last[zone]=color
+		}
+		return nil
+	}
 	if err=render();err!=nil{return fail(err)}
 	_,_=fmt.Fprintln(feedback,"READY")
     if mode==ledDualTone||mode==ledAmbient {<-stop;return nil}

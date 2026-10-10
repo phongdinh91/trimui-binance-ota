@@ -172,6 +172,6 @@ func handleLEDWorkerArgs(args []string) bool {
  ready:=os.NewFile(uintptr(3),"led-worker-ready")
  if ready==nil{return true}
  defer ready.Close()
- _=runLEDAnimationWorker(mode,brightness,speed,primary,secondary,ready)
+ if err:=runLEDAnimationWorker(mode,brightness,speed,primary,secondary,ready);err!=nil{fmt.Fprintln(os.Stderr,"LED worker stopped:",err)}
  return true
 }

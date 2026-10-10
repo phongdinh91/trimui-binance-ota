@@ -1,5 +1,14 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.39 — Khắc phục driver LED không sáng (bản cần kiểm tra trên máy thật)
+
+- Trước v0.39: ứng dụng gửi mã màu từng vùng nhưng không luôn kích hoạt lại `effect_<zone>`, vì vậy lệnh ghi sysfs có thể không làm LED sáng.
+- Khi chọn hiệu ứng, bật `enable=1` nếu firmware có node công tắc LED tổng; bật `effect_enable=1` cho hệ thống hiệu ứng. Gửi màu `RRGGBB ` trước, tiếp theo kích hoạt lại `effect_<zone>=0` rồi `effect_<zone>=4`. Chỉ ghi lại vùng khi màu thay đổi.
+- Áp dụng cùng cơ chế bật LED tổng cho màu tĩnh; không sử dụng vòng lặp `frame_hex` có rủi ro treo driver.
+- Lưu thông tin chẩn đoán dạng chỉ-đọc tại `Apps/BinanceGia.pak/led-diagnostic.txt` sau mỗi lần thử chọn LED, kể cả ứng dụng báo áp dụng thành công. Nếu đèn vẫn không sáng, gửi file này và phần cuối `binance-gia.log` để xác định node mà firmware TG4040 hỗ trợ.
+- **Thử nghiệm trên Brick Pro thật vẫn bắt buộc.** Unit test và ARM64 build không thể khẳng định hiệu ứng đã sáng. Nếu không sáng hoặc driver treo, ngừng thử, thoát ứng dụng và khởi động lại máy.
+
+
 ## v0.38 — LED Studio tích hợp vào BINANCE
 
 - **Cài đặt → Điều khiển LED:** 5 hàng gồm Chọn hiệu ứng, Độ sáng, Tốc độ, Màu chính và Màu phụ. D-pad **trái giảm / phải tăng** theo tốc độ thực; tên là **TỐC ĐỘ**, không phải tốc độ nháy.

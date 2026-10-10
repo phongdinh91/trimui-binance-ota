@@ -148,6 +148,9 @@ func applyBrickLEDConfig(s settingsFile)error{
   }
   return nil
  }
+ // Native static colors must also enable the hardware master gate.
+ if ledNodeExists("enable"){if err:=writeLEDNode("enable","1");err!=nil{return fmt.Errorf("không bật được LED tổng: %w",err)}}
+ if err:=writeLEDNode("effect_enable","1");err!=nil{return err}
  nativeID:="4" // stock native static colour mode
  if ledDynamic(s.LEDMode){
   for _,node:=range []string{"effect_names","effect_duration_m","effect_m","effect_rgb_hex_m"}{
@@ -171,6 +174,7 @@ func applyBrickLEDConfig(s settingsFile)error{
   // Native driver animation duration (milliseconds); faster means shorter duration.
   if err:=writeLEDNode("effect_duration_m",duration);err!=nil{return err}
  }
+ if nativeID=="4" {if err:=writeLEDNode("effect_m","0");err!=nil{return err}}
  if err:=writeLEDNode("effect_m",nativeID);err!=nil{return err}
  if err:=writeLEDOptional("effect_cycles_m","-1");err!=nil{return err}
  // Additional LED zones use native effect IDs only when those zone nodes exist.
@@ -179,6 +183,7 @@ func applyBrickLEDConfig(s settingsFile)error{
   if ledDynamic(s.LEDMode) {
    if err:=writeLEDOptional("effect_duration_"+zone,strconv.Itoa(ledDurationMS[s.LEDSpeed]));err!=nil{return err}
   }
+  if nativeID=="4" {if err:=writeLEDOptional("effect_"+zone,"0");err!=nil{return err}}
   if err:=writeLEDOptional("effect_"+zone,nativeID);err!=nil{return err}
   if err:=writeLEDOptional("effect_cycles_"+zone,"-1");err!=nil{return err}
  }
