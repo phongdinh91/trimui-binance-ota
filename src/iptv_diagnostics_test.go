@@ -107,10 +107,16 @@ func TestIPTVPINRateLimitAndExpiration(t *testing.T){
  if err!=nil{t.Fatal(err)}
  _=response.Body.Close()
  if response.StatusCode!=http.StatusTooManyRequests{t.Fatalf("limit must reject even correct PIN after 8 failures: %d",response.StatusCode)}
- share.Expires=time.Now().Add(-time.Second)
- expired,err:=client.Get(share.URL)
- if err==nil{
-  _=expired.Body.Close()
-  if expired.StatusCode==http.StatusOK {t.Fatal("expired report must not be served")}
+}
+func TestIPTVShareExpiresWithoutUserAction(t *testing.T){
+ share,err:=iptvStartWifiShareOn("127.0.0.1","EXPIRED REPORT",65*time.Millisecond)
+ if err!=nil{t.Fatal(err)}
+ defer share.Close()
+ time.Sleep(160*time.Millisecond)
+ client:=&http.Client{Timeout:time.Second}
+ resp,err:=client.Get(share.URL)
+ if err==nil {
+  defer resp.Body.Close()
+  if resp.StatusCode==http.StatusOK{t.Fatal("expired report must not be reachable")}
  }
 }
