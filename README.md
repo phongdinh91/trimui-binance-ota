@@ -1,5 +1,14 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.42 — Chẩn đoán IPTV không cần máy tính, chia sẻ Wi-Fi tự nguyện
+
+- Trong tab **IPTV**, nhấn **Y** để mở màn hình **IPTV - CHẨN ĐOÁN**. Báo cáo đọc các đường dẫn trình phát MPV cố định, kiểm tra ELF và thư viện media liên quan; kết quả được hiển thị ngay trên máy, cuộn bằng D-pad **lên/xuống**. **X** để quét lại và **B** để quay về.
+- Nhấn **A** khi đang ở màn hình chẩn đoán để bật máy chủ HTTP **chỉ trên địa chỉ IP mạng nội bộ** trong tối đa **5 phút**. Màn hình hiển thị URL bí mật ngẫu nhiên `http://<IP>:<port>/r/<mã>`. Mở URL đó trên điện thoại **cùng mạng Wi-Fi**, chọn **Sao chép báo cáo**, sau đó dán vào ChatGPT. Nhấn **A** một lần nữa hoặc **B** để tắt chia sẻ ngay; rời tab hay thoát BINANCE cũng sẽ tắt.
+- Không yêu cầu PC, không tháo thẻ nhớ, không lưu đường dẫn báo cáo trên dịch vụ đám mây. Ứng dụng **không tự tải dữ liệu lên Internet**; bạn chủ động mở URL từ điện thoại. URL cần giữ riêng tư trong thời gian chia sẻ, do thành viên cùng mạng có thể truy cập nếu biết đường dẫn bí mật.
+- Nội dung báo cáo chỉ có: phiên bản app, loại máy, kernel, tên/kiểu file trình phát cố định, thư viện multimedia đã tìm thấy, và tình trạng hiện diện/khả năng thực thi. **Không chứa thông tin Wi-Fi, token/khóa, MAC/IP của máy, playlist IPTV, tệp cá nhân hay lịch sử trình duyệt**. Báo cáo vẫn được lưu tại `Apps/BinanceGia.pak/iptv-diagnostic.txt` cho trường hợp cần hỗ trợ sau này.
+- Nếu điện thoại không mở được URL, kiểm tra hai thiết bị cùng Wi-Fi và AP isolation trong router; bạn vẫn có thể chụp ảnh màn hình. Bản này **chưa thêm bộ giải mã video**; nếu không có MPV trên Stock OS, chẩn đoán sẽ cho biết cụ thể nơi nào thiếu.
+- Phần LED giữ nguyên, không can thiệp.
+
 ## v0.41 — Tìm trình phát MPV ngoài PATH
 
 - **Lỗi v0.40:** Nếu không có `mpv` trong PATH, app báo thiếu ngay cả khi SD card có file `/mnt/SDCARD/System/bin/mpv`.
