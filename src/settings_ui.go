@@ -148,6 +148,9 @@ func applyBrickLEDConfig(s settingsFile)error{
   }
   return nil
  }
+ // Native static colors must also enable the hardware master gate.
+ if ledNodeExists("enable"){if err:=writeLEDNode("enable","1");err!=nil{return fmt.Errorf("không bật được LED tổng: %w",err)}}
+ if err:=writeLEDNode("effect_enable","1");err!=nil{return err}
  nativeID:="4" // stock native static colour mode
  if ledDynamic(s.LEDMode){
   for _,node:=range []string{"effect_names","effect_duration_m","effect_m","effect_rgb_hex_m"}{
