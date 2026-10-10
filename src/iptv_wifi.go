@@ -2,7 +2,12 @@ package main
 
 import (
  "crypto/rand"
+ "crypto/subtle"
  "encoding/base32"
+ "math/big"
+ "sync/atomic"
+
+ "binancegia/third_party/qrcode"
  "errors"
  "fmt"
  "html"
@@ -17,6 +22,9 @@ const iptvShareLifetime = 5*time.Minute
 
 type iptvWifiShare struct{
  URL string
+ ShortURL string
+ PIN string
+ QR [][]bool
  Expires time.Time
  server *http.Server
  once sync.Once
@@ -54,6 +62,11 @@ func iptvSharePage(report string)string{
  // Page has no third-party scripts, trackers, or external assets.
  return "<!doctype html><html lang=\"vi\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>BINANCE IPTV Diagnostic</title><style>body{font:16px system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#111827;color:#f3f4f6}textarea{width:100%;box-sizing:border-box;height:56vh;padding:12px;font:13px monospace;background:#f9fafb;color:#111}button{font:inherit;padding:13px;margin:12px 0;border:0;border-radius:8px;background:#eab308;color:#111827}p{line-height:1.5}</style></head><body><h2>BINANCE - Báo cáo IPTV</h2><p>Chia sẻ giữa Brick Pro và điện thoại qua Wi-Fi nội bộ. Không tự gửi ra Internet.</p><button id=\"copy\" type=\"button\">Sao chép báo cáo</button><p id=\"hint\">Bạn có thể chạm giữ để sao chép báo cáo và dán vào ChatGPT.</p><textarea id=\"report\" readonly>"+html.EscapeString(report)+"</textarea><script>document.getElementById(\"copy\").addEventListener(\"click\",function(){var t=document.getElementById(\"report\");t.focus();t.select();var ok=document.execCommand(\"copy\");document.getElementById(\"hint\").textContent=ok?\"Đã sao chép. Hãy dán báo cáo vào ChatGPT.\":\"Hãy chạm giữ để chọn và sao chép báo cáo.\";});</script></body></html>"
 }
+// A separate short, PIN-gated entry point avoids typing the long random
+// URL, while QR scanning retains an unguessable direct link.
+func iptvPINPage()string{
+ return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BINANCE IPTV</title><style>body{font:18px system-ui;max-width:460px;margin:32px auto;padding:16px;background:#111827;color:white}input,button{font:22px system-ui;padding:12px;max-width:100%;border-radius:8px;box-sizing:border-box}input{width:100%}button{background:#eab308;color:#111827;border:0;margin-top:12px}p{line-height:1.5}</style></head><body><h2>Chẩn đoán BINANCE IPTV</h2><p>Nhập mã PIN 6 số đang hiển thị trên Brick Pro. Chỉ sử dụng được khi thiết bị đang bật chia sẻ Wi-Fi.</p><form method="POST" action="/"><label for="pin">Mã PIN</label><input type="text" name="pin" id="pin" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="off" required><button type="submit">Xem báo cáo</button></form></body></html>`
+}
 func iptvStartWifiShareOn(ip,report string,ttl time.Duration)(*iptvWifiShare,error){
  parsed:=net.ParseIP(ip)
  if parsed==nil||parsed.To4()==nil{return nil,errors.New("địa chỉ mạng không hợp lệ")}
@@ -62,12 +75,25 @@ func iptvStartWifiShareOn(ip,report string,ttl time.Duration)(*iptvWifiShare,err
  secret:=make([]byte,12)
  if _,err:=rand.Read(secret);err!=nil{return nil,err}
  token:=strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(secret))
- listener,err:=net.Listen("tcp",net.JoinHostPort(ip,"0"))
+ pinNumber,err:=rand.Int(rand.Reader,big.NewInt(1000000))
+ if err!=nil{return nil,err}
+ pin:=fmt.Sprintf("%06d",pinNumber.Int64())
+ // Prefer a stable port for easy manual typing; use an ephemeral port if busy.
+ listener,err:=net.Listen("tcp",net.JoinHostPort(ip,"8765"))
+ if err!=nil{listener,err=net.Listen("tcp",net.JoinHostPort(ip,"0"))}
  if err!=nil{return nil,fmt.Errorf("không mở được Wi-Fi báo cáo: %w",err)}
  port:=listener.Addr().(*net.TCPAddr).Port
  path:="/r/"+token
- share:=&iptvWifiShare{URL:fmt.Sprintf("http://%s:%d%s",ip,port,path),Expires:time.Now().Add(ttl)}
- htmlPage:=iptvSharePage(report)
+ shortURL:=fmt.Sprintf("http://%s:%d",ip,port)
+ share:=&iptvWifiShare{
+  URL:shortURL+path,ShortURL:shortURL,PIN:pin,Expires:time.Now().Add(ttl),
+ }
+ qr,err:=qrcode.New(share.URL,qrcode.Medium)
+ if err!=nil{_ = listener.Close();return nil,fmt.Errorf("không tạo được mã QR: %w",err)}
+ share.QR=qr.Bitmap()
+ reportPage:=iptvSharePage(report)
+ pinPage:=iptvPINPage()
+ var failures atomic.Int32
  mux:=http.NewServeMux()
  mux.HandleFunc("/",func(w http.ResponseWriter,r *http.Request){
   w.Header().Set("Cache-Control","no-store")
@@ -75,9 +101,30 @@ func iptvStartWifiShareOn(ip,report string,ttl time.Duration)(*iptvWifiShare,err
   w.Header().Set("Referrer-Policy","no-referrer")
   w.Header().Set("X-Frame-Options","DENY")
   if time.Now().After(share.Expires){http.Error(w,"Expired",http.StatusGone);return}
-  if r.Method!="GET" || r.URL.Path!=path {http.NotFound(w,r);return}
+  // QR's long random URL opens the report without any typing.
+  if r.Method==http.MethodGet&&r.URL.Path==path {
+   w.Header().Set("Content-Type","text/html; charset=utf-8")
+   _,_=w.Write([]byte(reportPage))
+   return
+  }
+  if r.URL.Path!="/" {http.NotFound(w,r);return}
+  if r.Method==http.MethodGet{
+   w.Header().Set("Content-Type","text/html; charset=utf-8")
+   _,_=w.Write([]byte(pinPage))
+   return
+  }
+  if r.Method!=http.MethodPost {http.Error(w,"Method not allowed",http.StatusMethodNotAllowed);return}
+  if failures.Load()>=8{http.Error(w,"Too many attempts: restart sharing on Brick Pro",http.StatusTooManyRequests);return}
+  r.Body=http.MaxBytesReader(w,r.Body,1024)
+  if err:=r.ParseForm();err!=nil{http.Error(w,"Invalid form",http.StatusBadRequest);return}
+  entered:=r.PostForm.Get("pin")
+  if subtle.ConstantTimeCompare([]byte(entered),[]byte(pin))!=1 {
+   failures.Add(1)
+   http.Error(w,"Incorrect PIN",http.StatusForbidden)
+   return
+  }
   w.Header().Set("Content-Type","text/html; charset=utf-8")
-  _,_=w.Write([]byte(htmlPage))
+  _,_=w.Write([]byte(reportPage))
  })
  share.server=&http.Server{
   Handler:mux,
