@@ -1,5 +1,13 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.43 — Quét QR hoặc nhập địa chỉ ngắn + PIN để lấy báo cáo
+
+- Tab **IPTV → Y (CHẨN ĐOÁN) → A** hiển thị **mã QR** ngay trên Brick Pro. Dùng camera điện thoại cùng mạng Wi-Fi quét QR để mở báo cáo chẩn đoán ngay; **không cần gõ đường dẫn bí mật dài**.
+- Nếu điện thoại không quét được mã: trên màn hình có địa chỉ ngắn như `http://192.168.1.8:8765` (cổng 8765 là mặc định; khi bận, máy chọn cổng khác) và **mã PIN 6 chữ số**. Mở địa chỉ này trên điện thoại, nhập PIN là xem/copy được báo cáo.
+- Mã QR vẫn chứa link ngẫu nhiên khó đoán. Giao diện nhập PIN giới hạn 8 lần thử sai cho mỗi phiên. Thời gian chia sẻ vẫn tối đa **5 phút**, bấm **B** hoặc **A** lần nữa để tắt, và rời tab cũng tắt. Chỉ dùng mạng LAN; không tải lên máy chủ bên ngoài.
+- Mã QR tạo trực tiếp trên máy bằng thư viện **go-qrcode** (MIT; Tom Harwood), mã nguồn và LICENSE được đưa vào `src/third_party/qrcode` để build offline, không phụ thuộc API tạo QR trên Internet. Không đụng vào LED hoặc bộ phát IPTV.
+- Chưa thử trực tiếp độ dễ quét QR trên màn hình Brick Pro; nếu khó quét có thể dùng địa chỉ ngắn và PIN.
+
 ## v0.42 — Chẩn đoán IPTV không cần máy tính, chia sẻ Wi-Fi tự nguyện
 
 - Trong tab **IPTV**, nhấn **Y** để mở màn hình **IPTV - CHẨN ĐOÁN**. Báo cáo đọc các đường dẫn trình phát MPV cố định, kiểm tra ELF và thư viện media liên quan; kết quả được hiển thị ngay trên máy, cuộn bằng D-pad **lên/xuống**. **X** để quét lại và **B** để quay về.

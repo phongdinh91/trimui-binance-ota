@@ -28,7 +28,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.42"
+	appVersion          = "v0.43"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
@@ -3552,7 +3552,7 @@ func main() {
 					if detail {
                     } else if page==pageIPTV {
                         if iptvDiagVisible {
-                            lim:=iptvDiagnosticScrollMax(iptvDiagReport,max(1,(fb.h-bottomTabsHeight(fb)-270)/20))
+                            lim:=iptvDiagnosticScrollMax(iptvDiagReport,1) // renderer clamps to its true visible-row count
                             if iptvDiagScroll<lim{iptvDiagScroll++;dirty=true}
                         }else if !iptvPlaying&&iptvSelected+1<len(iptvChannels){iptvSelected++;dirty=true}
 					} else if page==pageSettings {
