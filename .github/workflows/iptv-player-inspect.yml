@@ -1,0 +1,38 @@
+name: Investigate optional IPTV player bundle
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/iptv-player-inspect.yml"
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Inspect only official WPE release package (no install)
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import urllib.request, zipfile, os, hashlib, collections, tempfile
+          url="https://github.com/matweew/wpe-tsp/releases/download/v0.2.0/WPE-0.2.0.zip"
+          print("Downloading trusted upstream release metadata + ZIP",flush=True)
+          request=urllib.request.Request(url,headers={"User-Agent":"Binance-IPTV-bundle-inspect"})
+          with urllib.request.urlopen(request,timeout=40) as req:
+              name="/tmp/wpe-player-inspect.zip"
+              with open(name,"wb") as out:
+                  while True:
+                      block=req.read(1024*1024)
+                      if not block:break
+                      out.write(block)
+          print("SHA256",hashlib.sha256(open(name,"rb").read()).hexdigest(),flush=True)
+          with zipfile.ZipFile(name) as z:
+              infos=z.infolist()
+              roots=collections.Counter(x.filename.split("/")[0] for x in infos)
+              print("ROOTS",roots,flush=True)
+              subs=[x for x in infos if "/mpv/" in x.filename or x.filename.startswith("mpv/")]
+              print("MPV FILES",len(subs),"TOTAL",sum(x.file_size for x in subs),"COMPRESSED",sum(x.compress_size for x in subs),flush=True)
+              for x in subs[:240]:
+                  print("FILE",x.filename,x.file_size,x.compress_size,flush=True)
+              print("ALL ZIP FILES",len(infos),flush=True)
+          PY
