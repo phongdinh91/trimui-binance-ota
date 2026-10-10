@@ -1,5 +1,13 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.41 — Tìm trình phát MPV ngoài PATH
+
+- **Lỗi v0.40:** Nếu không có `mpv` trong PATH, app báo thiếu ngay cả khi SD card có file `/mnt/SDCARD/System/bin/mpv`.
+- Bổ sung kiểm tra `/mnt/SDCARD/System/bin/mpv` (CrossMix), `/usr/bin/mpv`, `/usr/local/bin/mpv`, `/mnt/SDCARD/System/usr/bin/mpv`, `bin/mpv` và `mpv` trong thư mục ứng dụng; chỉ chấp nhận file có quyền thực thi.
+- Trình phát chạy với `LD_LIBRARY_PATH` riêng có `/mnt/SDCARD/System/lib`, không làm thay đổi cấu hình thư viện của BINANCE. Không thêm mã nhị phân MPV của bên thứ ba và không tự cài hệ điều hành.
+- Khi không tìm thấy trình phát, tạo `Apps/BinanceGia.pak/iptv-diagnostic.txt` liệt kê các đường dẫn đã kiểm tra. **Nếu báo thiếu sau OTA, cần gửi file này để tìm đúng giải pháp cho Stock OS và không cài bừa binary không tương thích.**
+- Vẫn cần thử thực tế xuất hình và âm thanh: việc tìm thấy file MPV không bảo đảm thư viện và driver đồ họa của firmware tương thích. LED giữ nguyên như v0.39.
+
 ## v0.40 — Tab IPTV và tự chuyển nguồn phát
 
 - Thêm tab **IPTV** giữa HI-TECH và CÀI ĐẶT (L1/R1 đổi tab); D-pad lên/xuống chọn kênh; **A** mở kênh; **B** dừng và trở lại; **X** tải lại playlist hoặc chuyển ngay sang nguồn kế tiếp nếu đang phát.
