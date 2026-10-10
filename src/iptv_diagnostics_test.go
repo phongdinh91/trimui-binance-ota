@@ -75,10 +75,11 @@ func TestIPTVShortLinkAndPINGate(t *testing.T){
   t.Fatalf("no PIN landing form: %d",response.StatusCode)
  }
  if strings.Contains(string(landing),"Secret status:"){t.Fatal("report leaked on short link")}
- wrong,err:=client.PostForm(share.ShortURL,url.Values{"pin":{"000000"}})
+ badPIN:="000000";if share.PIN=="000000"{badPIN="111111"}
+ wrong,err:=client.PostForm(share.ShortURL,url.Values{"pin":{badPIN}})
  if err!=nil{t.Fatal(err)}
  _=wrong.Body.Close()
- if wrong.StatusCode!=http.StatusForbidden && share.PIN!="000000"{
+ if wrong.StatusCode!=http.StatusForbidden{
   t.Fatalf("invalid PIN status %d",wrong.StatusCode)
  }
  correct,err:=client.PostForm(share.ShortURL,url.Values{"pin":{share.PIN}})
@@ -91,7 +92,7 @@ func TestIPTVShortLinkAndPINGate(t *testing.T){
  }
 }
 func TestIPTVPINRateLimitAndExpiration(t *testing.T){
- share,err:=iptvStartWifiShareOn("127.0.0.1","NEVER PUBLIC\n",250*time.Millisecond)
+ share,err:=iptvStartWifiShareOn("127.0.0.1","NEVER PUBLIC\n",4*time.Second)
  if err!=nil{t.Fatal(err)}
  defer share.Close()
  client:=&http.Client{Timeout:time.Second}
@@ -106,7 +107,7 @@ func TestIPTVPINRateLimitAndExpiration(t *testing.T){
  if err!=nil{t.Fatal(err)}
  _=response.Body.Close()
  if response.StatusCode!=http.StatusTooManyRequests{t.Fatalf("limit must reject even correct PIN after 8 failures: %d",response.StatusCode)}
- time.Sleep(400*time.Millisecond)
+ share.Expires=time.Now().Add(-time.Second)
  expired,err:=client.Get(share.URL)
  if err==nil{
   _=expired.Body.Close()
