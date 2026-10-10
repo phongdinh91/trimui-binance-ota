@@ -165,14 +165,71 @@ func iptvFindByID(channels []iptvChannel,id string)(iptvChannel,bool){
  for _,ch:=range channels{if ch.ID==id{return ch,true}}
  return iptvChannel{},false
 }
-func iptvAvailablePlayer()(string,error){
- if p,err:=exec.LookPath("mpv");err==nil{return p,nil}
- // User may provide an ARM64-compatible player in the app folder.
- candidate:=filepath.Join(appDir(),"mpv")
- if info,err:=os.Stat(candidate);err==nil && !info.IsDir() && info.Mode()&0111!=0 {
-  return candidate,nil
+// iptvPlayerPaths searches OS distribution locations directly: the stock
+// BINANCE launcher intentionally doesn't put third-party System/bin in PATH.
+func iptvPlayerPaths(app string) []string {
+ return []string{
+  filepath.Join(app,"mpv"),
+  filepath.Join(app,"bin","mpv"),
+  "/mnt/SDCARD/System/bin/mpv",  // CrossMix / compatible SD packs
+  "/mnt/SDCARD/System/usr/bin/mpv",
+  "/mnt/SDCARD/Apps/PortMaster/PortMaster/mpv",
+  "/usr/bin/mpv",
+  "/usr/local/bin/mpv",
+  "/bin/mpv",
  }
- return "",errors.New("không tìm thấy MPV trên Stock OS. Cần trình phát MPV ARM64 tương thích để xem TV")
+}
+func iptvExecutable(path string) bool {
+ fi,err:=os.Stat(path)
+ return err==nil&&!fi.IsDir()&&fi.Mode().IsRegular()&&fi.Mode().Perm()&0111!=0
+}
+func iptvFindPlayer(paths []string)(string,error){
+ for _,candidate:=range paths {
+  if iptvExecutable(candidate){return candidate,nil}
+ }
+ return "",errors.New("không tìm thấy MPV trong các thư mục ứng dụng/hệ thống")
+}
+func iptvAvailablePlayer()(string,error){
+ // Use PATH if present, but explicitly search known locations on the SD card.
+ if p,err:=exec.LookPath("mpv");err==nil&&iptvExecutable(p){return p,nil}
+ if p,err:=iptvFindPlayer(iptvPlayerPaths(appDir()));err==nil{return p,nil}
+ iptvWritePlayerDiagnostic("NOT FOUND")
+ return "",errors.New("máy chưa có MPV ở các đường dẫn hỗ trợ. Xem iptv-diagnostic.txt trong BinanceGia.pak; cần MPV ARM64 tương thích và thư viện video")
+}
+func iptvWritePlayerDiagnostic(result string) {
+ lines:=[]string{
+  "BINANCE IPTV video player diagnostics",
+  "Result: "+result,
+  "PATH="+os.Getenv("PATH"),
+  "LD_LIBRARY_PATH="+os.Getenv("LD_LIBRARY_PATH"),
+ }
+ if b,e:=os.ReadFile("/proc/device-tree/model");e==nil {
+  lines=append(lines,"Device: "+strings.ReplaceAll(strings.TrimSpace(string(b)),"\x00"," "))
+ }
+ for _,p:=range iptvPlayerPaths(appDir()){
+  info,e:=os.Stat(p)
+  if e!=nil{lines=append(lines,p+": not found");continue}
+  lines=append(lines,fmt.Sprintf("%s: mode=%s size=%d",p,info.Mode(),info.Size()))
+ }
+ out:=filepath.Join(appDir(),"iptv-diagnostic.txt")
+ if e:=os.WriteFile(out,[]byte(strings.Join(lines,"\n")+"\n"),0644);e!=nil{
+  fmt.Fprintln(os.Stderr,"IPTV diagnostic:",e)
+ }
+}
+func iptvPlayerEnv(env []string,player string)[]string{
+ // CrossMix MPV uses libraries in System/lib; apply only to this process
+ // so existing BINANCE/LED/network configuration is unaffected.
+ lib:="/mnt/SDCARD/System/lib"
+ old:=""
+ out:=make([]string,0,len(env)+1)
+ for _,item:=range env{
+  if strings.HasPrefix(item,"LD_LIBRARY_PATH="){old=strings.TrimPrefix(item,"LD_LIBRARY_PATH=");continue}
+  out=append(out,item)
+ }
+ dirs:="/lib:/lib64:/usr/lib:"+lib
+ if old!=""{dirs+=":"+old}
+ out=append(out,"LD_LIBRARY_PATH="+dirs)
+ return out
 }
 type iptvMPVReply struct {
  Error string `json:"error"`
@@ -209,6 +266,7 @@ func iptvPlaySource(ctx context.Context,skip <-chan struct{},player,address stri
   "--input-ipc-server="+sock,"--",address,
  }
  cmd:=exec.CommandContext(ctx,player,args...)
+ cmd.Env=iptvPlayerEnv(os.Environ(),player)
  // Do not inherit stdin or /dev/input; the BINANCE app handles D-pad/B itself.
  cmd.Stdin=nil
  if err:=cmd.Start();err!=nil{return 0,err}

@@ -99,3 +99,34 @@ case "$*" in *broken.m3u8*) exit 7 ;; *) /bin/sleep 10 ;; esac
  cancel()
  select{case <-done:case <-time.After(2*time.Second):t.Fatal("MPV did not exit on cancellation")}
 }
+
+func TestIPTVPlayerDiscoveryPath(t *testing.T){
+ dir:=t.TempDir()
+ executable:=filepath.Join(dir,"mpv")
+ other:=filepath.Join(dir,"mpv-old")
+ if err:=os.WriteFile(other,[]byte("#!/bin/sh\nexit 0\n"),0644);err!=nil{t.Fatal(err)}
+ if _,err:=iptvFindPlayer([]string{other});err==nil{t.Fatal("should not accept non-executable")}
+ if err:=os.WriteFile(executable,[]byte("#!/bin/sh\nexit 0\n"),0755);err!=nil{t.Fatal(err)}
+ got,err:=iptvFindPlayer([]string{filepath.Join(dir,"missing"),executable})
+ if err!=nil||got!=executable{t.Fatalf("got %q %v",got,err)}
+}
+func TestIPTVPlayerPathsCoverStockAndCrossmix(t *testing.T){
+ paths:=iptvPlayerPaths("/Apps/BinanceGia.pak")
+ hasLocal,hasSD:=false,false
+ for _,p:=range paths {
+  if p=="/Apps/BinanceGia.pak/mpv"{hasLocal=true}
+  if p=="/mnt/SDCARD/System/bin/mpv"{hasSD=true}
+ }
+ if !hasLocal||!hasSD{t.Fatal("missing app and SD player paths")}
+}
+func TestIPTVPlayerEnvKeepsOtherSettings(t *testing.T){
+ got:=iptvPlayerEnv([]string{"FOO=bar","LD_LIBRARY_PATH=/custom/so","GODEBUG=netdns=go"},"/mnt/SDCARD/System/bin/mpv")
+ var ld string
+ sawFoo,sawDebug:=false,false
+ for _,x:=range got{
+  if strings.HasPrefix(x,"LD_LIBRARY_PATH="){ld=x}
+  if x=="FOO=bar"{sawFoo=true}
+  if x=="GODEBUG=netdns=go"{sawDebug=true}
+ }
+ if !sawFoo||!sawDebug||!strings.Contains(ld,"/mnt/SDCARD/System/lib")||!strings.Contains(ld,"/custom/so"){t.Fatalf("unexpected env: %v",got)}
+}
