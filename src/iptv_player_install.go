@@ -103,6 +103,7 @@ func iptvDownloadPlayer(ctx context.Context,app string,client *http.Client,event
  }
  // Do not start an installation if there is inadequate free SD space.
  if err:=iptvInstallerDiskCheck(app);err!=nil{return err}
+ if iptvExecutable(iptvInstalledMPVPath(app)){return errors.New("trình phát đã được cài trong BINANCE")}
  zipPath:=filepath.Join(app,".iptv-player-download.zip")
  stage:=filepath.Join(app,".iptv-player-stage")
  target:=filepath.Join(app,"iptv-player")
@@ -159,7 +160,8 @@ func iptvDownloadPlayer(ctx context.Context,app string,client *http.Client,event
   return errors.New("đã có bộ MPV tại iptv-player; không ghi đè")
  }
  if err:=os.Rename(stage,target);err!=nil{return fmt.Errorf("không thể hoàn tất cài đặt MPV: %w",err)}
- emit("ĐÃ CÀI BỘ MPV TRONG BINANCE / HÃY THỬ PHÁT IPTV",true,nil)
+ if !iptvExecutable(iptvInstalledMPVPath(app)){return errors.New("đã giải nén MPV nhưng thẻ nhớ không cho thực thi; kiểm tra kiểu thẻ và mount options")}
+ emit("ĐÃ CÀI MPV / THỬ CHỌN KÊNH IPTV BẰNG A",true,nil)
  return nil
 }
 
