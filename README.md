@@ -1,5 +1,14 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.40 — Tab IPTV và tự chuyển nguồn phát
+
+- Thêm tab **IPTV** giữa HI-TECH và CÀI ĐẶT (L1/R1 đổi tab); D-pad lên/xuống chọn kênh; **A** mở kênh; **B** dừng và trở lại; **X** tải lại playlist hoặc chuyển ngay sang nguồn kế tiếp nếu đang phát.
+- Danh sách công khai cho kênh Việt Nam: `https://iptv-org.github.io/iptv/countries/vn.m3u` với kho dự phòng `https://raw.githubusercontent.com/iptv-org/iptv/master/streams/vn.m3u`. Nếu bạn có nguồn phát được cấp phép, có thể thêm vào file `Apps/BinanceGia.pak/iptv.m3u` theo chuẩn M3U. Danh sách do người dùng bổ sung được ưu tiên và không nằm trong gói OTA để tránh mất khi nâng cấp.
+- Với cùng một `tvg-id`, nhóm các link dự phòng thành một kênh. Khi MPV thoát bất thường, stream kết thúc hoặc bị ngắt hơn 22–25 giây (khi IPC cho phép phát hiện), app sẽ tự chuyển URL khác của **đúng kênh**, không tự nhảy sang kênh khác. Khi hết link cũ, tải mới playlist một lần để tìm URL mới và dừng có thông báo nếu vẫn thất bại.
+- Trình phát video: cần **MPV ARM64 tương thích trên Stock OS** (`mpv` trong PATH hoặc executable `Apps/BinanceGia.pak/mpv`). Nếu thiếu MPV, app sẽ hiển thị lý do rõ ràng. Không tải binary không rõ nguồn, không giả vờ có khả năng giải mã video trong Go.
+- **Cảnh báo tính tương thích:** Build và unit test trên GitHub chỉ kiểm chứng playlist/fallback/ARM64, chưa thể chứng minh xuất hình, âm thanh hoặc điều khiển video trên TG4040. Một số kênh có thể giới hạn vùng địa lý, không liên tục 24/7, có DRM hoặc yêu cầu quyền truy cập; app không vượt giới hạn, không đảm bảo tất cả kênh đều phát.
+- LED được giữ nguyên như bản v0.39, không thay đổi.
+
 ## v0.39 — Khắc phục driver LED không sáng (bản cần kiểm tra trên máy thật)
 
 - Trước v0.39: ứng dụng gửi mã màu từng vùng nhưng không luôn kích hoạt lại `effect_<zone>`, vì vậy lệnh ghi sysfs có thể không làm LED sáng.
