@@ -27,7 +27,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.38"
+	appVersion          = "v0.39"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
@@ -2935,17 +2935,19 @@ func main() {
         return err
     }
     applyLEDSettings:=func(candidate settingsFile){
-        if err:=stopWorker();err!=nil {ledStatus=err.Error();return}
+        if err:=stopWorker();err!=nil {ledStatus=err.Error();recordLEDDiagnostic("STOP ERROR: "+ledStatus);return}
         if ledFrameAnimated(candidate.LEDMode){
             worker,err:=startLEDAnimation(candidate)
-            if err!=nil{ledStatus=err.Error();return}
+            if err!=nil{ledStatus=err.Error();recordLEDDiagnostic("START ERROR: "+ledStatus);return}
             ledWorker=worker
         }else if err:=applyBrickLEDConfig(candidate);err!=nil{
             ledStatus=err.Error()
+            recordLEDDiagnostic("NATIVE ERROR: "+ledStatus)
             return
         }
         settings=candidate
         ledStatus=ledStatusMessage(candidate.LEDMode)
+        recordLEDDiagnostic(fmt.Sprintf("APPLIED mode=%d brightness=%d speed=%d (physical response not verified)",candidate.LEDMode,candidate.LEDBrightness,candidate.LEDSpeed))
         _=saveSettings(settings)
     }
     changeLED:=func(mode,brightness,speed int){
