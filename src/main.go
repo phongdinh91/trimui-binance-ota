@@ -28,7 +28,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.44"
+	appVersion          = "v0.45"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
@@ -3051,6 +3051,14 @@ func main() {
     iptvDiagReport:=""
     iptvDiagScroll:=0
     iptvDiagMessage:=""
+    iptvInstallEvents:=make(chan iptvInstallEvent,32)
+    iptvInstallBusy:=false
+    iptvInstallConfirm:=false
+    var iptvInstallCancel context.CancelFunc
+    stopIPTVInstall:=func(){
+        if iptvInstallCancel!=nil{iptvInstallCancel();iptvInstallCancel=nil}
+        iptvInstallConfirm=false
+    }
     var iptvShare *iptvWifiShare
     stopIPTVShare:=func(){
         if iptvShare!=nil{iptvShare.Close();iptvShare=nil}
@@ -3220,6 +3228,7 @@ func main() {
 
 	saveAndExit := func() {
         stopIPTVShare()
+        stopIPTVInstall()
         stopIPTV()
         _=stopWorker()
 		if !lastUpdated.IsZero() && (lastCacheSave.IsZero() || lastUpdated.After(lastCacheSave)) {
@@ -3230,7 +3239,18 @@ func main() {
 
 	for {
 		select {
-	    case catalog := <-iptvLoadCh:
+	    case event := <-iptvInstallEvents:
+            iptvDiagMessage=event.Message
+            if event.Done{
+                iptvInstallBusy=false
+                iptvInstallCancel=nil
+                if event.Err==nil {
+                    iptvPlayerOK=true
+                    iptvDiagReport=iptvCaptureDiagnostic()
+                }
+            }
+            dirty=true
+        case catalog := <-iptvLoadCh:
             iptvLoading=false
             if catalog.Err!=nil {
                 iptvStatus=catalog.Err.Error()
@@ -3750,9 +3770,15 @@ func main() {
 				case actB:
                     if page==pageIPTV{
                         if iptvDiagVisible{
-                            stopIPTVShare()
-                            iptvDiagVisible=false
-                            iptvDiagScroll=0
+                            if iptvInstallBusy{
+                                stopIPTVInstall()
+                                iptvDiagMessage="ĐANG HỦY TẢI MPV..."
+                            }else{
+                                stopIPTVShare()
+                                iptvDiagVisible=false
+                                iptvDiagScroll=0
+                                iptvInstallConfirm=false
+                            }
                             dirty=true
                         }else if iptvPlaying{stopIPTV();iptvStatus="ĐANG DỪNG TV...";dirty=true}
                     } else if page==pageSettings{
@@ -3810,9 +3836,14 @@ func main() {
 				case actY:
                     if page==pageIPTV {
                         if iptvDiagVisible{
-                            stopIPTVShare()
-                            iptvDiagVisible=false
-                            iptvDiagScroll=0
+                            if !iptvInstallBusy{
+                                stopIPTVShare()
+                                iptvDiagVisible=false
+                                iptvDiagScroll=0
+                                iptvInstallConfirm=false
+                            }else{
+                                iptvDiagMessage="ĐANG CÀI MPV / B ĐỂ HỦY"
+                            }
                         }else{
                             if iptvPlaying{stopIPTV();iptvPlaying=false}
                             iptvDiagVisible=true
@@ -3839,6 +3870,7 @@ func main() {
 
 				case actL1, actR1:
                     if page==pageIPTV{
+                        stopIPTVInstall()
                         stopIPTVShare()
                         iptvDiagVisible=false
                         if iptvPlaying {stopIPTV();iptvPlaying=false}
@@ -3896,7 +3928,25 @@ func main() {
 					}
 
 				case actStart:
-					if newPage,ok:=binanceStartTarget(page);ok {
+                    if page==pageIPTV && iptvDiagVisible {
+                        if iptvInstallBusy{
+                            iptvDiagMessage="ĐANG TẢI TRÌNH PHÁT / B ĐỂ HỦY"
+                        }else if iptvExecutable(iptvInstalledMPVPath(appDir())){
+                            iptvDiagMessage="BỘ MPV ĐÃ CÀI / HÃY THỬ XEM KÊNH"
+                        }else if !iptvInstallConfirm{
+                            iptvInstallConfirm=true
+                            iptvDiagMessage="XÁC NHẬN TẢI ~142 MB TỪ GITHUB: START LẦN NỮA"
+                        }else{
+                            iptvInstallConfirm=false
+                            iptvInstallBusy=true
+                            stopIPTVShare()
+                            iptvDiagMessage="ĐANG KIỂM TRA THẺ NHỚ..."
+                            ctx,cancel:=context.WithCancel(context.Background())
+                            iptvInstallCancel=cancel
+                            go iptvInstallAsync(ctx,appDir(),iptvInstallEvents)
+                        }
+                        dirty=true
+                    }else if newPage,ok:=binanceStartTarget(page);ok {
 						// START always discards stale detail when toggling search.
 						page=newPage
 						detail=false
@@ -3931,7 +3981,7 @@ func main() {
                     }
                 } else if page==pageIPTV {
                     if iptvDiagVisible{
-                        drawIPTVDiagnosticPage(fb,iptvDiagReport,iptvDiagScroll,iptvShare,iptvDiagMessage)
+                        drawIPTVDiagnosticPage(fb,iptvDiagReport,iptvDiagScroll,iptvShare,iptvDiagMessage,iptvInstallBusy,iptvInstallConfirm)
                     }else{
                         drawIPTVPage(fb,iptvChannels,iptvSelected,iptvLoading,iptvPlaying,iptvStatus,iptvPlayerOK)
                     }
