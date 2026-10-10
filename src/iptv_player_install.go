@@ -59,7 +59,7 @@ func iptvExtractPlayerZIP(ctx context.Context,zipPath,destination string)error{
   rel:=strings.TrimPrefix(f.Name,prefix)
   if rel==""{continue}
   // Must not follow any link or read paths escaping the WPE/mpv subtree.
-  if strings.HasPrefix(rel,"/")||strings.Contains(rel,"\")||strings.Contains(rel,":")||
+  if strings.HasPrefix(rel,"/")||strings.ContainsRune(rel,92)||strings.Contains(rel,":")||
      filepath.IsAbs(rel)||strings.Contains("/"+rel+"/","/../")||
      strings.Contains("/"+rel+"/","/./")||filepath.Clean(rel)==".."||
      strings.HasPrefix(filepath.Clean(rel),".."+string(os.PathSeparator)){
