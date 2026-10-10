@@ -7,7 +7,6 @@ import (
  "path/filepath"
  "strings"
  "testing"
- "time"
 )
 
 func iptvMakeInstallTestZIP(t *testing.T,names map[string]string)string{
@@ -81,14 +80,4 @@ func TestIPTVBundledPlayerPathsAndEnv(t *testing.T){
   !strings.Contains(got,"/usr/trimui/lib")||!strings.Contains(got,"/custom"){
   t.Fatalf("missing required library paths in %q",got)
  }
-}
-func TestIPTVDownloadPlayerCanceledBeforeNetwork(t *testing.T){
- ctx,cancel:=context.WithCancel(context.Background())
- cancel()
- events:=make(chan iptvInstallEvent,5)
- // No network is necessary: cancellation must be detected immediately after setup.
- // Can't assert error kind without sufficient SD space, only that cancellation is safe.
- _=ctx
- _=events
- _=time.Second
 }
