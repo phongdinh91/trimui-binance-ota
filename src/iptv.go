@@ -199,7 +199,7 @@ func iptvMPVProperty(sock,property string)(json.RawMessage,error){
  }
  return nil,errors.New("MPV không phản hồi IPC")
 }
-func iptvPlaySource(ctx context.Context,player,address string)(time.Duration,error){
+func iptvPlaySource(ctx context.Context,skip <-chan struct{},player,address string)(time.Duration,error){
  if !iptvAcceptURL(address){return 0,errors.New("luồng IPTV không hợp lệ")}
  sock:=filepath.Join(os.TempDir(),fmt.Sprintf("binance-iptv-%d-%d.sock",os.Getpid(),time.Now().UnixNano()))
  defer os.Remove(sock)
@@ -228,6 +228,10 @@ func iptvPlaySource(ctx context.Context,player,address string)(time.Duration,err
    if ctx.Err()!=nil{return time.Since(started),ctx.Err()}
    if err==nil {return time.Since(started),errors.New("luồng đã kết thúc")}
    return time.Since(started),fmt.Errorf("MPV: %w",err)
+  case <-skip:
+   if cmd.Process!=nil{_ = cmd.Process.Kill()}
+   select{case <-done:case <-time.After(2*time.Second):}
+   return time.Since(started),errors.New("đã chuyển nguồn thủ công")
   case <-ctx.Done():
    if cmd.Process!=nil{_ = cmd.Process.Kill()}
    select{case <-done:case <-time.After(2*time.Second):}
@@ -263,14 +267,17 @@ func iptvPlaySource(ctx context.Context,player,address string)(time.Duration,err
   }
  }
 }
-func iptvPlayback(ctx context.Context,session int64,ch iptvChannel,client *http.Client,local string,events chan<- iptvEvent) {
+func iptvPlayback(ctx context.Context,skip <-chan struct{},session int64,ch iptvChannel,client *http.Client,local string,events chan<- iptvEvent) {
+ lastStatus:="ĐÃ DỪNG IPTV"
  emit:=func(msg string,done bool){
+  if msg!=""{lastStatus=msg}
   event:=iptvEvent{Session:session,Message:msg,Done:done}
   select{case events<-event:case <-ctx.Done():}
  }
- defer func(){if ctx.Err()==nil { emit("ĐÃ DỪNG IPTV",true) }else{
-  select {case events<-iptvEvent{Session:session,Message:"ĐÃ DỪNG IPTV",Done:true}:default:}
- }}()
+ defer func(){
+  if ctx.Err()!=nil{lastStatus="ĐÃ DỪNG IPTV"}
+  select {case events<-iptvEvent{Session:session,Message:lastStatus,Done:true}:default:}
+ }()
  player,err:=iptvAvailablePlayer()
  if err!=nil{emit(err.Error(),false);return}
  tried:=make(map[string]bool)
@@ -294,7 +301,7 @@ func iptvPlayback(ctx context.Context,session int64,ch iptvChannel,client *http.
   tried[next]=true
   attempt++
   emit(fmt.Sprintf("ĐANG PHÁT %s - NGUỒN %d (B ĐỂ DỪNG)",ch.Name,attempt),false)
-  _,err:=iptvPlaySource(ctx,player,next)
+  _,err:=iptvPlaySource(ctx,skip,player,next)
   if ctx.Err()!=nil{return}
   emit(fmt.Sprintf("NGUỒN %d LỖI: %s - TỰ CHUYỂN NGUỒN",attempt,cutNews(err.Error(),44)),false)
  }
