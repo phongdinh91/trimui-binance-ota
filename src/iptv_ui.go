@@ -22,7 +22,7 @@ func drawIPTVPage(fb *framebuffer,channels []iptvChannel,selected int,loading,pl
   drawASCII(fb,margin,contentTop+34,2,"CHƯA CÓ KÊNH IPTV",cMuted)
   if loading {drawASCII(fb,margin,contentTop+73,1,"ĐANG TẢI PLAYLIST...",cYellow)}
   if status!=""{drawASCII(fb,margin,contentTop+111,1,cutNews(status,96),cRed)}
-  drawBottomTabs(fb,pageIPTV,"X: TẢI LẠI KÊNH   L1/R1: ĐỔI TAB")
+  drawBottomTabs(fb,pageIPTV,"Y: CHẨN ĐOÁN   X: TẢI KÊNH   L1/R1: ĐỔI TAB")
   return
  }
  usable:=bottom-contentTop-46
@@ -50,5 +50,5 @@ func drawIPTVPage(fb *framebuffer,channels []iptvChannel,selected int,loading,pl
  if status!=""{
   drawASCII(fb,margin,bottom-37,1,cutNews(status,100),statusColor)
  }
- drawBottomTabs(fb,pageIPTV,"D-PAD: CHỌN KÊNH   A: XEM   B: DỪNG   X: TẢI LẠI")
+ drawBottomTabs(fb,pageIPTV,"A: XEM   B: DỪNG   X: NGUỒN / TẢI LẠI   Y: CHẨN ĐOÁN")
 }
