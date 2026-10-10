@@ -1,5 +1,13 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.46 — Nhóm BÓNG ĐÁ, Ngoại hạng Anh và FPT Play bản quyền
+
+- Trong **BINANCE → IPTV**, nhấn **SELECT** để chuyển giữa **TẤT CẢ KÊNH** và **BÓNG ĐÁ**. Nhóm BÓNG ĐÁ hiện kênh có tên liên quan đến bóng đá/thể thao trong các playlist IPTV đang tải; không thay đổi nguồn, đường dự phòng MPV, hay chức năng LED.
+- Ở đầu nhóm **BÓNG ĐÁ** luôn có mục **NGOẠI HẠNG ANH – FPT PLAY (CHÍNH THỨC)**. Bấm **A** để xem mã QR đưa điện thoại đến trang **<https://fptplay.vn/lich-thi-dau/ngoai-hang-anh>**. Bấm **B** trở về danh sách kênh. Đây là **lối vào trang thể thao chính thức, không phải luồng video MPV**.
+- Năm 2026–2031, **FPT Play** là đơn vị phân phối độc quyền Ngoại hạng Anh tại Việt Nam, có bình luận tiếng Việt (đối chiếu <https://www.premierleague.com/ar/news/3703577/premier-league-broadcast-deals-for-2025-2028> và <https://fpt.com/vi/tin-tuc/fpt-play-so-huu-ban-quyen-giai-ngoai-hang-anh-tai-viet-nam>). Nội dung trực tiếp có thể cần đăng nhập/gói cước và cơ chế bảo vệ; **BINANCE không có quyền phát lại luồng FPT Play hoặc giả lập luồng mở**.
+- Kênh thể thao khác từ danh sách công khai hoặc `Apps/BinanceGia.pak/iptv.m3u` do người dùng cung cấp vẫn phát bằng MPV nếu có URL HTTP(S) tương thích và quyền truy cập hợp lệ. **Tên kênh thể thao không đồng nghĩa có bản quyền Ngoại hạng Anh hay bình luận tiếng Việt**. Bộ lọc không tự tạo link lậu hay vượt đăng nhập/DRM.
+- Cách phát Ngoại hạng Anh **trực tiếp trên Brick Pro** sẽ chỉ khả thi khi người dùng có luồng phát hợp lệ được cấp quyền và được phép dùng với một trình phát ngoài của bên cung cấp. Máy tính/điện thoại có ứng dụng FPT Play là giải pháp chính thức đã xác nhận, còn WPE/MPV trên Brick Pro không được đảm bảo chạy được DRM.
+
 ## v0.45 — Cài trình phát IPTV tùy chọn ngay trên Brick Pro (thử nghiệm)
 
 Báo cáo chẩn đoán thực tế ngày 2026-10-10 của thiết bị TG4040 Brick Pro cho thấy **không có** `mpv` hoặc `ffplay`, `/mnt/SDCARD/System` không tồn tại. Stock OS có `libavcodec.so.60` và `libavformat.so.60`, nhưng riêng thư viện giải mã chưa đủ tạo ra hình/tiếng.
