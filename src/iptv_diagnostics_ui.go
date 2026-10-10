@@ -22,9 +22,10 @@ func drawIPTVDiagnosticPage(fb *framebuffer,report string,scroll int,share *iptv
  if share!=nil && time.Now().Before(share.Expires){
   drawASCII(fb,margin,y,2,"CHIA SE WIFI DANG BAT",cGreen);y+=31
   drawASCII(fb,margin,y,1,"DIEN THOAI CUNG WIFI, MO TRINH DUYET:",cText);y+=19
-  drawASCII(fb,margin,y,2,"http://",cYellow);y+=25
-  address:=strings.TrimPrefix(share.URL,"http://")
-  drawASCII(fb,margin,y,2,cutNews(address,max(28,(fb.w-2*margin)/14)),cYellow);y+=33
+  // Always render the WHOLE secret URL: truncation would make it unusable.
+  scale:=2
+  if asciiWidth(scale,share.URL)>fb.w-2*margin{scale=1}
+  drawASCII(fb,margin,y,scale,share.URL,cYellow);y+=31
   secs:=int(time.Until(share.Expires).Seconds())
   drawASCII(fb,margin,y,1,fmt.Sprintf("LINK TU DONG DONG SAU %d GIAY",max(0,secs)),cMuted);y+=27
  }else{
