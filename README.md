@@ -1,5 +1,12 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.44 — Sửa QR không mở được và trang báo cáo khó sao chép
+
+- **QR dễ quét hơn:** mã QR giờ chỉ chứa **địa chỉ Wi-Fi ngắn**, giống địa chỉ nhập thủ công vốn hoạt động, thay vì đường dẫn token dài nhiều ký tự. Máy tạo QR mật độ thấp với ô vuông lớn và viền trắng; quét mở **trang nhập PIN 6 số**. Không bỏ xác thực.
+- **Trên điện thoại:** sau khi nhập PIN, trang báo cáo có **Sao chép báo cáo**, **Chia sẻ**, **Tải tệp .txt** và **Chọn toàn bộ**. Cách sao chép thử Clipboard API trước (nếu môi trường cho phép), sau đó dùng vùng nhập tạm có thể chọn được; nếu trình duyệt chặn cả hai, người dùng có thể tải `iptv-diagnostic.txt` rồi đính kèm trực tiếp vào ChatGPT trên điện thoại.
+- **Lưu ý bảo mật trình duyệt:** trang có địa chỉ `http://192.168.x.x:8765` chạy trong Wi-Fi nội bộ nên một số máy không cho phép Clipboard API hoặc chia sẻ hệ thống. Nếu camera tự đổi thành `https://` hãy dùng lại **http://** như địa chỉ hiện trên màn hình.
+- Hết hạn sau 5 phút, giới hạn thử PIN, không tự gửi dữ liệu Internet, không sửa LED hay trình phát IPTV. QR, clipboard và Wi-Fi vẫn cần thử thực tế trên Brick Pro/điện thoại người dùng.
+
 ## v0.43 — Quét QR hoặc nhập địa chỉ ngắn + PIN để lấy báo cáo
 
 - Tab **IPTV → Y (CHẨN ĐOÁN) → A** hiển thị **mã QR** ngay trên Brick Pro. Dùng camera điện thoại cùng mạng Wi-Fi quét QR để mở báo cáo chẩn đoán ngay; **không cần gõ đường dẫn bí mật dài**.
