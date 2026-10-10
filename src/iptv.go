@@ -186,12 +186,10 @@ func iptvMPVProperty(sock,property string)(json.RawMessage,error){
  defer conn.Close()
  _=conn.SetDeadline(time.Now().Add(900*time.Millisecond))
  query,_:=json.Marshal(map[string]any{"command":[]any{"get_property",property},"request_id":1327})
- if _,err=conn.Write(append(query,'
-'));err!=nil{return nil,err}
+ if _,err=conn.Write(append(query,byte(10)));err!=nil{return nil,err}
  reader:=bufio.NewReader(io.LimitReader(conn,8192))
  for n:=0;n<8;n++{
-  line,err:=reader.ReadBytes('
-')
+  line,err:=reader.ReadBytes(byte(10))
   if err!=nil{return nil,err}
   var reply iptvMPVReply
   if json.Unmarshal(line,&reply)==nil&&reply.RequestID==1327{
