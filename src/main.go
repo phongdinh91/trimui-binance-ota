@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+    "context"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -27,7 +28,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.39"
+	appVersion          = "v0.40"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
@@ -1752,6 +1753,7 @@ const (
 	pageBusiness  = 2
 	pageHitech    = 3
 	pageSettings  = 4
+    pageIPTV      = 5
 )
 
 func bottomTabsHeight(fb *framebuffer) int {
@@ -1764,15 +1766,15 @@ func drawBottomTabs(fb *framebuffer, active int, hint string) {
  fb.rect(0,y,fb.w,footerH,cPanel)
  if hint!="" {drawEvenFooterHints(fb,hint,y+11)}
  tabs:=[]struct{page int;label string}{
-  {pageFavorites,"BINANCE"}, {pageBusiness,"KINH DOANH"}, {pageHitech,"HI-TECH"}, {pageSettings,"CÀI ĐẶT"},
+  {pageFavorites,"BINANCE"}, {pageBusiness,"KINH DOANH"}, {pageHitech,"HI-TECH"}, {pageIPTV,"IPTV"}, {pageSettings,"CÀI ĐẶT"},
  }
  tabY:=y+55
  for i,t:=range tabs {
-  center:=fb.w*(i*2+1)/8
+  center:=fb.w*(i*2+1)/(2*len(tabs))
   x:=center-asciiWidth(2,t.label)/2
   clr:=cMuted
   activeTab:=active==t.page || (active==pageSearch&&t.page==pageFavorites)
-  if activeTab {clr=cYellow;fb.rect(fb.w*i/4+7,tabY+26,fb.w/4-14,4,cYellow)}
+  if activeTab {clr=cYellow;fb.rect(fb.w*i/len(tabs)+7,tabY+26,fb.w/len(tabs)-14,4,cYellow)}
   drawASCII(fb,x,tabY,2,t.label,clr)
 
  }
@@ -1780,7 +1782,7 @@ func drawBottomTabs(fb *framebuffer, active int, hint string) {
 }
 
 func cycleMainPage(page,dir int)int {
- ordered:=[]int{pageFavorites,pageBusiness,pageHitech,pageSettings}
+ ordered:=[]int{pageFavorites,pageBusiness,pageHitech,pageIPTV,pageSettings}
  if page==pageSearch {page=pageFavorites}
  for i,p:=range ordered {
   if p==page{return ordered[(i+dir+len(ordered))%len(ordered)]}
@@ -3031,6 +3033,50 @@ func main() {
 
 	// Search is a temporary view within BINANCE; START always returns to its grid.
 	page := pageFavorites
+    // IPTV stays separate from BINANCE quotes, news, settings and LEDs.
+    iptvClient:=&http.Client{Timeout:9*time.Second}
+    iptvLocal:=filepath.Join(appDir(),"iptv.m3u")
+    iptvChannels:=[]iptvChannel(nil)
+    iptvSelected:=0
+    iptvLoading:=false
+    iptvLastFetch:=time.Time{}
+    iptvStatus:=""
+    iptvLoadCh:=make(chan iptvLoadResult,2)
+    iptvEvents:=make(chan iptvEvent,64)
+    var iptvSession int64
+    var iptvCancel context.CancelFunc
+    var iptvSkip chan struct{}
+    iptvPlaying:=false
+    iptvPlayerOK:=false
+    if _,err:=iptvAvailablePlayer();err==nil {iptvPlayerOK=true}
+    loadIPTV:=func(force bool){
+        if iptvLoading||(!force&&len(iptvChannels)>0&&time.Since(iptvLastFetch)<30*time.Minute){return}
+        iptvLoading=true;iptvStatus="ĐANG TẢI KÊNH..."
+        go func(){
+            ctx,cancel:=context.WithTimeout(context.Background(),24*time.Second)
+            defer cancel()
+            result:=iptvLoad(ctx,iptvClient,iptvLocal)
+            select{case iptvLoadCh<-result:default:}
+        }()
+    }
+    stopIPTV:=func(){
+        if iptvCancel!=nil{iptvCancel();iptvCancel=nil}
+    }
+    startIPTV:=func(ch iptvChannel){
+        stopIPTV()
+        if _,err:=iptvAvailablePlayer();err!=nil{
+            iptvStatus=err.Error();iptvPlayerOK=false;iptvPlaying=false
+            return
+        }
+        iptvPlayerOK=true
+        iptvSession++
+        ctx,cancel:=context.WithCancel(context.Background())
+        iptvCancel=cancel
+        iptvSkip=make(chan struct{},1)
+        iptvPlaying=true
+        iptvStatus="ĐANG MỞ "+ch.Name+"..."
+        go iptvPlayback(ctx,iptvSkip,iptvSession,ch,iptvClient,iptvLocal,iptvEvents)
+    }
 	favoriteSel := 0
 	query := ""
 	suggestions := []ticker(nil)
@@ -3165,6 +3211,7 @@ func main() {
 	defer tick.Stop()
 
 	saveAndExit := func() {
+        stopIPTV()
         _=stopWorker()
 		if !lastUpdated.IsZero() && (lastCacheSave.IsZero() || lastUpdated.After(lastCacheSave)) {
 			_ = saveCache(all, lastUpdated)
@@ -3174,6 +3221,27 @@ func main() {
 
 	for {
 		select {
+	    case catalog := <-iptvLoadCh:
+            iptvLoading=false
+            if catalog.Err!=nil {
+                iptvStatus=catalog.Err.Error()
+            } else {
+                iptvChannels=catalog.Channels
+                iptvLastFetch=time.Now()
+                if iptvSelected>=len(iptvChannels){iptvSelected=max(0,len(iptvChannels)-1)}
+                iptvStatus=fmt.Sprintf("ĐÃ TẢI %d KÊNH / XEM BẰNG A",len(iptvChannels))
+            }
+            dirty=true
+        case event:=<-iptvEvents:
+            if event.Session==iptvSession {
+                iptvStatus=event.Message
+                if event.Done {
+                    iptvPlaying=false
+                    iptvCancel=nil
+                    iptvSkip=nil
+                }
+                dirty=true
+            }
 		case oc := <-otaCheckCh:
             if oc.Err!=nil {
                 otaStatusTitle="KHÔNG THỂ KIỂM TRA OTA"
@@ -3315,7 +3383,7 @@ func main() {
 				dirty = true
 			}
 			if !detail && page==pageBusiness && newsView==3 && now.Sub(goldLastAttempt)>=goldRefreshInterval {doGoldFetch()}
-			if now.After(nextFetch) {
+			if !iptvPlaying && now.After(nextFetch) {
 				doFetch()
 				nextFetch = time.Now().Add(refreshEvery)
 			}
@@ -3423,6 +3491,7 @@ func main() {
 
 				switch ac {
 				case actExit:
+                    if page==pageIPTV && iptvPlaying {stopIPTV();iptvStatus="ĐANG DỪNG TV...";continue}
 					if exitConfirm {
 						exitConfirm = false
 					} else {
@@ -3436,6 +3505,8 @@ func main() {
 				case actUp:
 					if detail {
 						// Keep selected coin while viewing chart.
+                    } else if page==pageIPTV {
+                        if !iptvPlaying&&iptvSelected>0{iptvSelected--;dirty=true}
 					} else if page==pageSettings {
                         if ledSubmenuVisible {
                             if ledSelected>0{ledSelected--;dirty=true}
@@ -3463,6 +3534,8 @@ func main() {
 
 				case actDown:
 					if detail {
+                    } else if page==pageIPTV {
+                        if !iptvPlaying&&iptvSelected+1<len(iptvChannels){iptvSelected++;dirty=true}
 					} else if page==pageSettings {
                         if ledSubmenuVisible {
                             if ledSelected<ledSubItemCount-1{ledSelected++;dirty=true}
@@ -3550,7 +3623,9 @@ func main() {
 
 
 				case actA:
-                    if page==pageSettings {
+                    if page==pageIPTV {
+                        if !iptvPlaying && iptvSelected>=0 && iptvSelected<len(iptvChannels){startIPTV(iptvChannels[iptvSelected]);dirty=true}
+                    } else if page==pageSettings {
                         if ledSubmenuVisible {
                             switch ledSelected {
                             case ledSubEffect:
@@ -3641,7 +3716,9 @@ func main() {
 
 
 				case actB:
-                    if page==pageSettings{
+                    if page==pageIPTV{
+                        if iptvPlaying{stopIPTV();iptvStatus="ĐANG DỪNG TV...";dirty=true}
+                    } else if page==pageSettings{
                         if ledSubmenuVisible {
                             ledSubmenuVisible=false
                             ledPendingMode=-1
@@ -3663,7 +3740,11 @@ func main() {
 
 
 				case actX:
-					if detail {
+                    if page==pageIPTV {
+                        if iptvPlaying&&iptvSkip!=nil{select{case iptvSkip<-struct{}{}:default:}}
+                        if !iptvPlaying {loadIPTV(true)}
+                        dirty=true
+					} else if detail {
 						doFetch();doPairFetch()
 						nextFetch=time.Now().Add(refreshEvery)
 						doChartFetch(detailSymbol,chartRange,true)
@@ -3700,11 +3781,13 @@ func main() {
 
 
 				case actL1, actR1:
+                    if page==pageIPTV && iptvPlaying {stopIPTV();iptvPlaying=false}
 					detail=false
 					if page==pageSearch {
 						query="";suggSel=0;focusSuggestions=false;refreshSuggestions()
 					}
 					if ac==actR1 {page=cycleMainPage(page,1)} else {page=cycleMainPage(page,-1)}
+                    if page==pageIPTV {loadIPTV(false)}
                     settingsAboutVisible=false
                     ledSubmenuVisible=false
                     ledPendingMode=-1
@@ -3766,6 +3849,7 @@ func main() {
 			}
 
 			if dirty {
+                if page==pageIPTV && iptvPlaying {dirty=false;continue}
 				if detail {
 					if t, ok := findTicker(all, detailSymbol); ok {
 						key := chartKey(detailSymbol, chartRange)
@@ -3784,6 +3868,8 @@ func main() {
                     } else {
                         drawAppSettings(fb,settings,settingsSelected,otaChecking.Load(),ledStatus)
                     }
+                } else if page==pageIPTV {
+                    drawIPTVPage(fb,iptvChannels,iptvSelected,iptvLoading,iptvPlaying,iptvStatus,iptvPlayerOK)
                 } else if page==pageBusiness || page==pageHitech {
                     cat,ok:=newsCategoryFor(page,newsCategorySel)
                     switch newsView {
