@@ -28,7 +28,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.41"
+	appVersion          = "v0.42"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
@@ -3047,6 +3047,14 @@ func main() {
     var iptvCancel context.CancelFunc
     var iptvSkip chan struct{}
     iptvPlaying:=false
+    iptvDiagVisible:=false
+    iptvDiagReport:=""
+    iptvDiagScroll:=0
+    iptvDiagMessage:=""
+    var iptvShare *iptvWifiShare
+    stopIPTVShare:=func(){
+        if iptvShare!=nil{iptvShare.Close();iptvShare=nil}
+    }
     iptvPlayerOK:=false
     if _,err:=iptvAvailablePlayer();err==nil {iptvPlayerOK=true}
     loadIPTV:=func(force bool){
@@ -3211,6 +3219,7 @@ func main() {
 	defer tick.Stop()
 
 	saveAndExit := func() {
+        stopIPTVShare()
         stopIPTV()
         _=stopWorker()
 		if !lastUpdated.IsZero() && (lastCacheSave.IsZero() || lastUpdated.After(lastCacheSave)) {
@@ -3375,7 +3384,12 @@ func main() {
 			dirty = true
 
 		case <-tick.C:
-			now := time.Now()
+            now := time.Now()
+            if iptvShare!=nil && !now.Before(iptvShare.Expires) {
+                stopIPTVShare()
+                iptvDiagMessage="CHIA SE WIFI DA HET HAN"
+                dirty=true
+            }
             if minute:=now.Unix()/60;minute!=lastHeaderMinute{lastHeaderMinute=minute;dirty=true}
 			if !detail && page == pageSearch && !now.Before(nextCursorBlink) {
 				cursorVisible = !cursorVisible
@@ -3506,7 +3520,9 @@ func main() {
 					if detail {
 						// Keep selected coin while viewing chart.
                     } else if page==pageIPTV {
-                        if !iptvPlaying&&iptvSelected>0{iptvSelected--;dirty=true}
+                        if iptvDiagVisible {
+                            if iptvDiagScroll>0{iptvDiagScroll--;dirty=true}
+                        }else if !iptvPlaying&&iptvSelected>0{iptvSelected--;dirty=true}
 					} else if page==pageSettings {
                         if ledSubmenuVisible {
                             if ledSelected>0{ledSelected--;dirty=true}
@@ -3535,7 +3551,10 @@ func main() {
 				case actDown:
 					if detail {
                     } else if page==pageIPTV {
-                        if !iptvPlaying&&iptvSelected+1<len(iptvChannels){iptvSelected++;dirty=true}
+                        if iptvDiagVisible {
+                            lim:=iptvDiagnosticScrollMax(iptvDiagReport,max(1,(fb.h-bottomTabsHeight(fb)-270)/20))
+                            if iptvDiagScroll<lim{iptvDiagScroll++;dirty=true}
+                        }else if !iptvPlaying&&iptvSelected+1<len(iptvChannels){iptvSelected++;dirty=true}
 					} else if page==pageSettings {
                         if ledSubmenuVisible {
                             if ledSelected<ledSubItemCount-1{ledSelected++;dirty=true}
@@ -3624,7 +3643,20 @@ func main() {
 
 				case actA:
                     if page==pageIPTV {
-                        if !iptvPlaying && iptvSelected>=0 && iptvSelected<len(iptvChannels){startIPTV(iptvChannels[iptvSelected]);dirty=true}
+                        if iptvDiagVisible {
+                            if iptvShare!=nil {
+                                stopIPTVShare()
+                                iptvDiagMessage="DA TAT CHIA SE WIFI"
+                            }else{
+                                iptvDiagReport=iptvCaptureDiagnostic()
+                                shared,err:=iptvStartWifiShare(iptvDiagReport)
+                                if err!=nil{iptvDiagMessage=err.Error()}else{
+                                    iptvShare=shared
+                                    iptvDiagMessage="CHIA SE NOI BO TRONG 5 PHUT / B DE DONG"
+                                }
+                            }
+                            dirty=true
+                        }else if !iptvPlaying && iptvSelected>=0 && iptvSelected<len(iptvChannels){startIPTV(iptvChannels[iptvSelected]);dirty=true}
                     } else if page==pageSettings {
                         if ledSubmenuVisible {
                             switch ledSelected {
@@ -3717,7 +3749,12 @@ func main() {
 
 				case actB:
                     if page==pageIPTV{
-                        if iptvPlaying{stopIPTV();iptvStatus="ĐANG DỪNG TV...";dirty=true}
+                        if iptvDiagVisible{
+                            stopIPTVShare()
+                            iptvDiagVisible=false
+                            iptvDiagScroll=0
+                            dirty=true
+                        }else if iptvPlaying{stopIPTV();iptvStatus="ĐANG DỪNG TV...";dirty=true}
                     } else if page==pageSettings{
                         if ledSubmenuVisible {
                             ledSubmenuVisible=false
@@ -3741,8 +3778,15 @@ func main() {
 
 				case actX:
                     if page==pageIPTV {
-                        if iptvPlaying&&iptvSkip!=nil{select{case iptvSkip<-struct{}{}:default:}}
-                        if !iptvPlaying {loadIPTV(true)}
+                        if iptvDiagVisible {
+                            stopIPTVShare()
+                            iptvDiagReport=iptvCaptureDiagnostic()
+                            iptvDiagScroll=0
+                            iptvDiagMessage="DA CAP NHAT BAO CAO"
+                        }else{
+                            if iptvPlaying&&iptvSkip!=nil{select{case iptvSkip<-struct{}{}:default:}}
+                            if !iptvPlaying {loadIPTV(true)}
+                        }
                         dirty=true
 					} else if detail {
 						doFetch();doPairFetch()
@@ -3764,7 +3808,20 @@ func main() {
 					dirty=true
 
 				case actY:
-					if detail {
+                    if page==pageIPTV {
+                        if iptvDiagVisible{
+                            stopIPTVShare()
+                            iptvDiagVisible=false
+                            iptvDiagScroll=0
+                        }else{
+                            if iptvPlaying{stopIPTV();iptvPlaying=false}
+                            iptvDiagVisible=true
+                            iptvDiagReport=iptvCaptureDiagnostic()
+                            iptvDiagScroll=0
+                            iptvDiagMessage="A: WIFI / X: CAP NHAT / B: TRO LAI"
+                        }
+                        dirty=true
+                    }else if detail {
 						chartRange = (chartRange + 1) % len(chartRanges)
 						settings.ChartRange = chartRange
 						_ = saveSettings(settings)
@@ -3781,7 +3838,11 @@ func main() {
 
 
 				case actL1, actR1:
-                    if page==pageIPTV && iptvPlaying {stopIPTV();iptvPlaying=false}
+                    if page==pageIPTV{
+                        stopIPTVShare()
+                        iptvDiagVisible=false
+                        if iptvPlaying {stopIPTV();iptvPlaying=false}
+                    }
 					detail=false
 					if page==pageSearch {
 						query="";suggSel=0;focusSuggestions=false;refreshSuggestions()
@@ -3849,7 +3910,7 @@ func main() {
 			}
 
 			if dirty {
-                if page==pageIPTV && iptvPlaying {dirty=false;continue}
+                if page==pageIPTV && iptvPlaying && !iptvDiagVisible {dirty=false;continue}
 				if detail {
 					if t, ok := findTicker(all, detailSymbol); ok {
 						key := chartKey(detailSymbol, chartRange)
@@ -3869,7 +3930,11 @@ func main() {
                         drawAppSettings(fb,settings,settingsSelected,otaChecking.Load(),ledStatus)
                     }
                 } else if page==pageIPTV {
-                    drawIPTVPage(fb,iptvChannels,iptvSelected,iptvLoading,iptvPlaying,iptvStatus,iptvPlayerOK)
+                    if iptvDiagVisible{
+                        drawIPTVDiagnosticPage(fb,iptvDiagReport,iptvDiagScroll,iptvShare,iptvDiagMessage)
+                    }else{
+                        drawIPTVPage(fb,iptvChannels,iptvSelected,iptvLoading,iptvPlaying,iptvStatus,iptvPlayerOK)
+                    }
                 } else if page==pageBusiness || page==pageHitech {
                     cat,ok:=newsCategoryFor(page,newsCategorySel)
                     switch newsView {
