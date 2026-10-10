@@ -17,7 +17,7 @@ func drawIPTVQRCode(fb *framebuffer,modules [][]bool,x,y,maxSize int)int{
  if cell<2{return 0}
  size:=count*cell
  // QR bitmap includes a quiet zone; preserve high-contrast black/white.
- fb.rect(x-3,y-3,size+6,size+6,color{255,255,255})
+ fb.rect(x-8,y-8,size+16,size+16,color{255,255,255})
  for row,bits:=range modules {
   for col,dark:=range bits {
    if dark {fb.rect(x+col*cell,y+row*cell,cell,cell,color{0,0,0})}
@@ -41,12 +41,12 @@ func drawIPTVDiagnosticPage(fb *framebuffer,report string,scroll int,share *iptv
   qrY:=top+78
   qrMax:=min(228,fb.w-margin-qrX,fb.h-footer-qrY-25)
   qrSize:=drawIPTVQRCode(fb,share.QR,qrX,qrY,qrMax)
-  drawASCII(fb,margin,y,2,"QUET QR BANG DIEN THOAI",cGreen);y+=37
-  drawASCII(fb,margin,y,1,"NEU KHONG QUET DUOC, MO LINK NGAN:",cText);y+=25
+  drawASCII(fb,margin,y,2,"QUET QR DE MO TRANG NHAP PIN",cGreen);y+=37
+  drawASCII(fb,margin,y,1,"NEU KHONG MO DUOC QR, NHAP LINK:",cText);y+=25
   linkScale:=2
   if asciiWidth(linkScale,share.ShortURL)>qrX-margin-15{linkScale=1}
   drawASCII(fb,margin,y,linkScale,share.ShortURL,cYellow);y+=39
-  drawASCII(fb,margin,y,2,"MA PIN 6 SO:",cMuted);y+=30
+  drawASCII(fb,margin,y,2,"NHAP PIN 6 SO:",cMuted);y+=30
   drawASCII(fb,margin,y,4,share.PIN,cYellow);y+=44
   drawASCII(fb,margin,y,1,"LINK TU DONG TAT SAU 5 PHUT",cMuted);y+=25
   if qrSize>0 {y=max(y,qrY+qrSize+16)}

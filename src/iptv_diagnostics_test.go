@@ -4,6 +4,9 @@ import (
  "io"
  "net/http"
  "net/url"
+ "reflect"
+
+ "binancegia/third_party/qrcode"
  "strings"
  "testing"
  "time"
@@ -119,4 +122,39 @@ func TestIPTVShareExpiresWithoutUserAction(t *testing.T){
   defer resp.Body.Close()
   if resp.StatusCode==http.StatusOK{t.Fatal("expired report must not be reachable")}
  }
+}
+
+
+func TestIPTVQREncodesShortPINAddress(t *testing.T){
+ share,err:=iptvStartWifiShareOn("127.0.0.1","SAFE REPORT",time.Minute)
+ if err!=nil{t.Fatal(err)}
+ defer share.Close()
+ code,err:=qrcode.New(share.ShortURL,qrcode.Low)
+ if err!=nil{t.Fatal(err)}
+ if !reflect.DeepEqual(share.QR,code.Bitmap()) {
+  t.Fatal("QR must point to short manual PIN URL, not long token URL")
+ }
+ // Short QR matrix means larger modules and easier scanning at fixed 228px.
+ if len(share.QR)>41 {t.Fatalf("short URL should fit a simple QR, got %d modules",len(share.QR))}
+ client:=&http.Client{Timeout:2*time.Second}
+ resp,err:=client.Get(share.ShortURL)
+ if err!=nil{t.Fatal(err)}
+ b,_:=io.ReadAll(resp.Body);resp.Body.Close()
+ if resp.StatusCode!=200||!strings.Contains(string(b),"Mã PIN"){t.Fatal("short QR URL did not open PIN page")}
+ if strings.Contains(string(b),"SAFE REPORT"){t.Fatal("QR landing page must not expose report without PIN")}
+}
+
+func TestIPTVReportPageMobileCopyAndDownload(t *testing.T) {
+ report:="MPV: missing\nCANARY </textarea><script>alert('x')</script>\n"
+ page:=iptvSharePage(report)
+ required:=[]string{
+  "Sao chép báo cáo", "Tải tệp .txt", "Chia sẻ", "Chọn toàn bộ",
+  "navigator.clipboard", "execCommand(\"copy\")", "Blob(", "download=\"iptv-diagnostic.txt\"",
+  "navigator.share", "selectAll()",
+ }
+ for _,part:=range required{if !strings.Contains(page,part){t.Fatalf("missing mobile feature %q",part)}}
+ if strings.Contains(page,"CANARY </textarea>"){t.Fatal("malicious report injected HTML")}
+ if !strings.Contains(page,"CANARY &lt;/textarea&gt;"){t.Fatal("escaped report is missing")}
+ if !strings.Contains(page,"MPV: missing"){t.Fatal("original report missing")}
+ if strings.Contains(page,"https://cdn."){t.Fatal("page must be self-contained")}
 }
