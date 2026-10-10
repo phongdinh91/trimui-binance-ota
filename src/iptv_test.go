@@ -49,8 +49,7 @@ func TestIPTVNeverMixOtherChannels(t *testing.T){
 }
 
 func TestIPTVURLRejectsLocalAndUnsupportedProtocols(t *testing.T){
- for _,raw:=range []string{"file:///etc/passwd","javascript:alert(1)","https://user:pass@tv.test/live","https://host.test/x
---bad",""}{
+ for _,raw:=range []string{"file:///etc/passwd","javascript:alert(1)","https://user:pass@tv.test/live","https://host.test/x"+string(rune(10))+"--bad",""}{
   if iptvAcceptURL(raw){t.Fatalf("accepted invalid URL %q",raw)}
  }
  for _,raw:=range []string{"https://stream.example.org/live.m3u8","http://stream.example.org/live.m3u8"}{
@@ -60,10 +59,10 @@ func TestIPTVURLRejectsLocalAndUnsupportedProtocols(t *testing.T){
 
 func TestIPTVFetchBoundedPlaylist(t *testing.T) {
  server:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
-  io.WriteString(w,"#EXTM3U
+  io.WriteString(w,`#EXTM3U
 #EXTINF:-1 tvg-id="TV1.vn",TV1
 https://example.org/stream.m3u8
-")
+`)
  }))
  defer server.Close()
  xs,err:=iptvFetchSource(context.Background(),server.Client(),server.URL)
@@ -75,9 +74,9 @@ func TestIPTVFallbackAfterBrokenMPVSource(t *testing.T){
  script:=filepath.Join(dir,"mpv")
  // Shell MPV stub: first URL fails, second stays alive until cancelled.
  // This tests the failover engine without device sysfs or a video codec.
- body:="#!/bin/sh
+ body:=`#!/bin/sh
 case "$*" in *broken.m3u8*) exit 7 ;; *) /bin/sleep 10 ;; esac
-"
+`
  if err:=os.WriteFile(script,[]byte(body),0755);err!=nil{t.Fatal(err)}
  t.Setenv("PATH",dir)
  ctx,cancel:=context.WithTimeout(context.Background(),4*time.Second)
