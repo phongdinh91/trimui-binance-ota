@@ -171,9 +171,11 @@ func iptvPlayerPaths(app string) []string {
  return []string{
   filepath.Join(app,"mpv"),
   filepath.Join(app,"bin","mpv"),
+  iptvInstalledMPVPath(app),
   "/mnt/SDCARD/System/bin/mpv",  // CrossMix / compatible SD packs
   "/mnt/SDCARD/System/usr/bin/mpv",
   "/mnt/SDCARD/Apps/PortMaster/PortMaster/mpv",
+  "/mnt/SDCARD/Apps/WPE/mpv/mpv", // optional user-installed upstream WPE
   "/usr/bin/mpv",
   "/usr/local/bin/mpv",
   "/bin/mpv",
@@ -226,7 +228,12 @@ func iptvPlayerEnv(env []string,player string)[]string{
   if strings.HasPrefix(item,"LD_LIBRARY_PATH="){old=strings.TrimPrefix(item,"LD_LIBRARY_PATH=");continue}
   out=append(out,item)
  }
- dirs:="/lib:/lib64:/usr/lib:"+lib
+ dirs:="/lib:/lib64:/usr/lib:"+lib+":/usr/trimui/lib"
+ // A self-contained upstream WPE player needs its own FFmpeg/Cedar/SDL2
+ // shared libraries; apply only to this spawned process.
+ if filepath.Base(filepath.Dir(player))=="iptv-player"||filepath.Dir(player)=="/mnt/SDCARD/Apps/WPE/mpv"{
+  dirs=filepath.Join(filepath.Dir(player),"lib")+":"+dirs
+ }
  if old!=""{dirs+=":"+old}
  out=append(out,"LD_LIBRARY_PATH="+dirs)
  return out
@@ -264,6 +271,11 @@ func iptvPlaySource(ctx context.Context,skip <-chan struct{},player,address stri
   "--input-terminal=no","--input-default-bindings=no",
   "--network-timeout=10","--cache=yes","--demuxer-readahead-secs=3",
   "--input-ipc-server="+sock,"--",address,
+ }
+ // Upstream WPE MPV has the SDL2/GLES/CedarX framebuffer video setup
+ // defined in its own mpv.conf; --no-config would disable that setup.
+ if filepath.Base(filepath.Dir(player))=="iptv-player"||filepath.Dir(player)=="/mnt/SDCARD/Apps/WPE/mpv"{
+  args[0]="--config-dir="+filepath.Dir(player)
  }
  cmd:=exec.CommandContext(ctx,player,args...)
  cmd.Env=iptvPlayerEnv(os.Environ(),player)

@@ -25,7 +25,7 @@ func drawIPTVQRCode(fb *framebuffer,modules [][]bool,x,y,maxSize int)int{
  }
  return size
 }
-func drawIPTVDiagnosticPage(fb *framebuffer,report string,scroll int,share *iptvWifiShare,message string){
+func drawIPTVDiagnosticPage(fb *framebuffer,report string,scroll int,share *iptvWifiShare,message string,installBusy,installConfirm bool){
  fb.fill(cBg)
  top:=drawAppTopBar(fb,pageIPTV)
  margin:=max(18,fb.w/50)
@@ -53,6 +53,16 @@ func drawIPTVDiagnosticPage(fb *framebuffer,report string,scroll int,share *iptv
  }else{
   drawASCII(fb,margin,y,1,"A: HIEN MA QR VA LINK WIFI NGAN (5 PHUT)",cText);y+=24
   drawASCII(fb,margin,y,1,"HOAC CHUP ANH BAO CAO BEN DUOI",cMuted);y+=24
+ }
+ // Optional, user-confirmed video dependency: WPE package is 142 MB.
+ if installBusy{
+  drawASCII(fb,margin,y,2,"DANG CAI MPV - B DE HUY",cYellow);y+=32
+ }else if installConfirm{
+  drawASCII(fb,margin,y,2,"START: XAC NHAN TAI ~142 MB",cYellow);y+=32
+ }else if iptvExecutable(iptvInstalledMPVPath(appDir())){
+  drawASCII(fb,margin,y,2,"DA CAI MPV - THU XEM IPTV",cGreen);y+=32
+ }else{
+  drawASCII(fb,margin,y,1,"START: CAI MPV THU NGHIEM QUA WIFI (~142 MB)",cYellow);y+=27
  }
  if message!="" {
   drawASCII(fb,margin,y,1,cutNews(message,max(30,(fb.w-2*margin)/8)),cYellow)

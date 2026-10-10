@@ -1,5 +1,15 @@
 # BINANCE — TrimUI Brick Pro (Stock OS)
 
+## v0.45 — Cài trình phát IPTV tùy chọn ngay trên Brick Pro (thử nghiệm)
+
+Báo cáo chẩn đoán thực tế ngày 2026-10-10 của thiết bị TG4040 Brick Pro cho thấy **không có** `mpv` hoặc `ffplay`, `/mnt/SDCARD/System` không tồn tại. Stock OS có `libavcodec.so.60` và `libavformat.so.60`, nhưng riêng thư viện giải mã chưa đủ tạo ra hình/tiếng.
+
+- Trên máy: **BINANCE → IPTV → Y (CHẨN ĐOÁN) → START**. App giải thích tải khoảng **142 MB** từ bản gốc <https://github.com/matweew/wpe-tsp/releases/tag/v0.2.0>. **Nhấn START lần thứ hai** để chấp thuận. Yêu cầu Wi-Fi và tối thiểu **230 MB dung lượng thẻ nhớ trống**. **B** hủy việc tải.
+- Người dùng chọn cài mới bắt đầu tải trực tiếp ZIP gốc từ GitHub, **kiểm SHA-256 ghim cứng** `97552ae45b49b2e7581f4af7b397681b5193ea7534c1e70f7a26d04f78422cdc`, và **chỉ** lấy `WPE/mpv/` (37.5 MB; binary MPV, SDL2, FFmpeg, Cedar). Tệp tạm được xóa sau hoàn tất. Không thay đổi firmware, thư viện hệ thống, RetroArch, LED hoặc bất kỳ ứng dụng nào khác.
+- Cài trong `Apps/BinanceGia.pak/iptv-player/` với thông tin nguồn `SOURCE.txt`. BINANCE tự tìm MPV tại đây, chạy với `lib/` riêng cùng `mpv.conf` của dự án upstream. Nếu đã có thư mục WPE do người dùng tự cài, app cũng có thể sử dụng `Apps/WPE/mpv/mpv`.
+- Khi xong, **B quay về IPTV → chọn kênh → A** để thử phát. Nếu phát bị lỗi, hãy mở lại chẩn đoán để gửi tình trạng, báo lỗi/trình phát. Đây là bản thử nghiệm: upstream đã phát video trên **TrimUI Smart Pro cùng nền A133**, nhưng **chưa xác minh Brick Pro thực tế**. **Không đảm bảo** mọi kênh, HLS hay âm thanh đều chạy và không tự động sửa/flash hệ điều hành.
+- Gói thứ ba có thể bao gồm phần mềm theo GPL/LGPL và phụ thuộc Cedar phần cứng của tác giả upstream; BINANCE tải và xác minh gói gốc, không đưa các binary này vào gói OTA BINANCE. Phần LED giữ nguyên.
+
 ## v0.44 — Sửa QR không mở được và trang báo cáo khó sao chép
 
 - **QR dễ quét hơn:** mã QR giờ chỉ chứa **địa chỉ Wi-Fi ngắn**, giống địa chỉ nhập thủ công vốn hoạt động, thay vì đường dẫn token dài nhiều ký tự. Máy tạo QR mật độ thấp với ô vuông lớn và viền trắng; quét mở **trang nhập PIN 6 số**. Không bỏ xác thực.

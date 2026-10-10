@@ -2,6 +2,7 @@ package main
 
 import (
  "debug/elf"
+ "context"
  "fmt"
  "os"
  "os/exec"
@@ -52,6 +53,22 @@ func iptvDiagnosticText(app string) string {
    _=f.Close()
   }
   lines=append(lines,fmt.Sprintf("MPV %s: %s, %s, %d bytes",path,state,kind,fi.Size()))
+ }
+ // Safely probe only the app-local optional player: --version never opens
+ // a stream, display or network but catches missing runtime linker/deps.
+ localPlayer:=iptvInstalledMPVPath(app)
+ if iptvExecutable(localPlayer){
+  ctx,cancel:=context.WithTimeout(context.Background(),3*time.Second)
+  cmd:=exec.CommandContext(ctx,localPlayer,"--version")
+  cmd.Env=iptvPlayerEnv(os.Environ(),localPlayer)
+  output,err:=cmd.CombinedOutput()
+  cancel()
+  line:=strings.TrimSpace(string(output))
+  if len(line)>250{line=line[:250]}
+  line=strings.Join(strings.Fields(line)," ")
+  if err!=nil {lines=append(lines,fmt.Sprintf("Bundled MPV preflight: FAIL (%v) %s",err,line))}else{
+   lines=append(lines,"Bundled MPV preflight: OK "+line)
+  }
  }
  if !playerFound {lines=append(lines,"RESULT: No executable MPV was found at the supported paths")}
  if playerFound {lines=append(lines,"RESULT: MPV found; output/video/audio capability is NOT verified")}
