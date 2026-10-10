@@ -46,12 +46,15 @@ func TestGoldFetcherUses24h(t *testing.T) {
  if err!=nil {t.Fatal(err)}
  if len(got.Quotes)!=1||!strings.EqualFold(got.Quotes[0].Name,"SJC")||got.FetchedAt.IsZero() {t.Fatalf("unexpected snapshot %+v",got)}
 }
-func TestFourMainTabs(t *testing.T) {
- if cycleMainPage(pageSearch,1)!=pageBusiness || cycleMainPage(pageFavorites,1)!=pageBusiness ||
-    cycleMainPage(pageBusiness,1)!=pageHitech || cycleMainPage(pageHitech,1)!=pageSettings ||
-    cycleMainPage(pageSettings,1)!=pageFavorites {t.Fatal("R1 four tabs") }
- if cycleMainPage(pageSearch,-1)!=pageSettings || cycleMainPage(pageBusiness,-1)!=pageFavorites ||
-    cycleMainPage(pageFavorites,-1)!=pageSettings || cycleMainPage(pageSettings,-1)!=pageHitech {
-    t.Fatal("L1 four tabs")
+func TestFiveMainTabs(t *testing.T) {
+ expected:=[]int{pageFavorites,pageBusiness,pageHitech,pageIPTV,pageSettings}
+ for i,page:=range expected {
+  right:=expected[(i+1)%len(expected)]
+  left:=expected[(i+len(expected)-1)%len(expected)]
+  if got:=cycleMainPage(page,1);got!=right{t.Fatalf("R1 from %d: got %d want %d",page,got,right)}
+  if got:=cycleMainPage(page,-1);got!=left{t.Fatalf("L1 from %d: got %d want %d",page,got,left)}
+ }
+ if cycleMainPage(pageSearch,1)!=pageBusiness||cycleMainPage(pageSearch,-1)!=pageSettings{
+  t.Fatal("Search must share BINANCE tab")
  }
 }
