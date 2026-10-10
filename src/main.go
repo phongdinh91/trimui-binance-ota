@@ -28,7 +28,7 @@ import (
 
 // appVersion controls OTA releases: increasing it on main starts verified auto-publish.
 const (
-	appVersion          = "v0.45"
+	appVersion          = "v0.46"
 	cacheSaveInterval   = 2 * time.Minute
 	defaultRefreshIndex = 1
 
@@ -3038,6 +3038,8 @@ func main() {
     iptvLocal:=filepath.Join(appDir(),"iptv.m3u")
     iptvChannels:=[]iptvChannel(nil)
     iptvSelected:=0
+    iptvSection:=iptvSectionAll
+    iptvGuideVisible:=false
     iptvLoading:=false
     iptvLastFetch:=time.Time{}
     iptvStatus:=""
@@ -3257,7 +3259,7 @@ func main() {
             } else {
                 iptvChannels=catalog.Channels
                 iptvLastFetch=time.Now()
-                if iptvSelected>=len(iptvChannels){iptvSelected=max(0,len(iptvChannels)-1)}
+                if iptvSelected>=len(iptvVisibleChannels(iptvChannels,iptvSection)){iptvSelected=max(0,len(iptvVisibleChannels(iptvChannels,iptvSection))-1)}
                 iptvStatus=fmt.Sprintf("ĐÃ TẢI %d KÊNH / XEM BẰNG A",len(iptvChannels))
             }
             dirty=true
@@ -3525,6 +3527,7 @@ func main() {
 
 				switch ac {
 				case actExit:
+                    if page==pageIPTV && iptvGuideVisible {iptvGuideVisible=false;dirty=true;continue}
                     if page==pageIPTV && iptvPlaying {stopIPTV();iptvStatus="ĐANG DỪNG TV...";continue}
 					if exitConfirm {
 						exitConfirm = false
@@ -3542,7 +3545,7 @@ func main() {
                     } else if page==pageIPTV {
                         if iptvDiagVisible {
                             if iptvDiagScroll>0{iptvDiagScroll--;dirty=true}
-                        }else if !iptvPlaying&&iptvSelected>0{iptvSelected--;dirty=true}
+                        }else if !iptvPlaying&&!iptvGuideVisible&&iptvSelected>0{iptvSelected--;dirty=true}
 					} else if page==pageSettings {
                         if ledSubmenuVisible {
                             if ledSelected>0{ledSelected--;dirty=true}
@@ -3574,7 +3577,7 @@ func main() {
                         if iptvDiagVisible {
                             lim:=iptvDiagnosticScrollMax(iptvDiagReport,1) // renderer clamps to its true visible-row count
                             if iptvDiagScroll<lim{iptvDiagScroll++;dirty=true}
-                        }else if !iptvPlaying&&iptvSelected+1<len(iptvChannels){iptvSelected++;dirty=true}
+                        }else if !iptvPlaying&&!iptvGuideVisible&&iptvSelected+1<len(iptvVisibleChannels(iptvChannels,iptvSection)){iptvSelected++;dirty=true}
 					} else if page==pageSettings {
                         if ledSubmenuVisible {
                             if ledSelected<ledSubItemCount-1{ledSelected++;dirty=true}
@@ -3676,7 +3679,22 @@ func main() {
                                 }
                             }
                             dirty=true
-                        }else if !iptvPlaying && iptvSelected>=0 && iptvSelected<len(iptvChannels){startIPTV(iptvChannels[iptvSelected]);dirty=true}
+                        }else if iptvGuideVisible {
+                            iptvStatus="FPT PLAY: QUÉT QR BẰNG ĐIỆN THOẠI"
+                            dirty=true
+                        }else if !iptvPlaying {
+                            visible:=iptvVisibleChannels(iptvChannels,iptvSection)
+                            if iptvSelected>=0&&iptvSelected<len(visible) {
+                                selected:=visible[iptvSelected]
+                                if iptvIsOfficialEPLEntry(selected) {
+                                    iptvGuideVisible=true
+                                    iptvStatus="FPT PLAY CHÍNH THỨC / CẦN GÓI PHÙ HỢP"
+                                }else{
+                                    startIPTV(selected)
+                                }
+                                dirty=true
+                            }
+                        }
                     } else if page==pageSettings {
                         if ledSubmenuVisible {
                             switch ledSelected {
@@ -3769,7 +3787,10 @@ func main() {
 
 				case actB:
                     if page==pageIPTV{
-                        if iptvDiagVisible{
+                        if iptvGuideVisible{
+                            iptvGuideVisible=false
+                            dirty=true
+                        }else if iptvDiagVisible{
                             if iptvInstallBusy{
                                 stopIPTVInstall()
                                 iptvDiagMessage="ĐANG HỦY TẢI MPV..."
@@ -3846,6 +3867,7 @@ func main() {
                             }
                         }else{
                             if iptvPlaying{stopIPTV();iptvPlaying=false}
+                            iptvGuideVisible=false
                             iptvDiagVisible=true
                             iptvDiagReport=iptvCaptureDiagnostic()
                             iptvDiagScroll=0
@@ -3873,6 +3895,7 @@ func main() {
                         stopIPTVInstall()
                         stopIPTVShare()
                         iptvDiagVisible=false
+                        iptvGuideVisible=false
                         if iptvPlaying {stopIPTV();iptvPlaying=false}
                     }
 					detail=false
@@ -3888,7 +3911,15 @@ func main() {
 					dirty=true
 
 				case actSelect:
-					if detail {
+                    if page==pageIPTV{
+                        if !iptvPlaying && !iptvDiagVisible{
+                            if iptvSection==iptvSectionAll{iptvSection=iptvSectionFootball}else{iptvSection=iptvSectionAll}
+                            iptvSelected=0
+                            iptvGuideVisible=false
+                            if iptvSection==iptvSectionFootball{iptvStatus="BÓNG ĐÁ / FPT PLAY"}else{iptvStatus="TẤT CẢ KÊNH"}
+                            dirty=true
+                        }
+                    }else if detail {
 						sym := detailSymbol
 						if sym != "" {
 							favorites[sym] = !favorites[sym]
@@ -3982,8 +4013,11 @@ func main() {
                 } else if page==pageIPTV {
                     if iptvDiagVisible{
                         drawIPTVDiagnosticPage(fb,iptvDiagReport,iptvDiagScroll,iptvShare,iptvDiagMessage,iptvInstallBusy,iptvInstallConfirm)
+                    }else if iptvGuideVisible{
+                        drawIPTVFootballGuidePage(fb)
                     }else{
-                        drawIPTVPage(fb,iptvChannels,iptvSelected,iptvLoading,iptvPlaying,iptvStatus,iptvPlayerOK)
+                        visible:=iptvVisibleChannels(iptvChannels,iptvSection)
+                        drawIPTVPage(fb,visible,iptvSelected,iptvSection,iptvLoading,iptvPlaying,iptvStatus,iptvPlayerOK)
                     }
                 } else if page==pageBusiness || page==pageHitech {
                     cat,ok:=newsCategoryFor(page,newsCategorySel)
